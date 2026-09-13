@@ -10,6 +10,9 @@ const {
 } =
     require("firebase-admin/firestore");
 
+const crypto =
+    require("crypto");
+
 
 // =====================================================
 // INITIALIZE FIREBASE ADMIN
@@ -21,292 +24,171 @@ const db = getFirestore();
 
 
 // =====================================================
-// SECURE MCC WITHDRAWAL
+// GENERATE SECURE MATCHCONNECT WALLET ID
 // =====================================================
 
-exports.withdrawMCC = onCall(
+function generateWalletId() {
+
+    return (
+        "MC-" +
+        crypto
+            .randomBytes(8)
+            .toString("hex")
+            .toUpperCase()
+    );
+
+}
+
+
+// =====================================================
+// CREATE / GET USER WALLET
+// =====================================================
+
+exports.createWallet = onCall(
     async (request) => {
 
         // =================================================
-        // 1. REQUIRE AUTHENTICATION
+        // REQUIRE LOGIN
         // =================================================
 
         if (!request.auth) {
 
             throw new HttpsError(
                 "unauthenticated",
-                "You must be logged in to withdraw MCC."
+                "You must be logged in."
             );
 
         }
 
-
-        // =================================================
-        // 2. GET USER UID FROM FIREBASE AUTH
-        // =================================================
 
         const uid =
             request.auth.uid;
 
-
-        // =================================================
-        // 3. READ REQUEST DATA
-        // =================================================
-
-        const amount =
-            Number(
-                request.data?.amount
-            );
-
-        const account =
-            String(
-                request.data?.account || ""
-            ).trim();
-
-
-        // =================================================
-        // 4. VALIDATE AMOUNT
-        // =================================================
-
-        if (
-            !Number.isFinite(amount) ||
-            amount <= 0
-        ) {
-
-            throw new HttpsError(
-                "invalid-argument",
-                "Enter a valid withdrawal amount."
-            );
-
-        }
-
-
-        // =================================================
-        // 5. VALIDATE ACCOUNT
-        // =================================================
-
-        if (!account) {
-
-            throw new HttpsError(
-                "invalid-argument",
-                "Bank account is required."
-            );
-
-        }
-
-
-        // =================================================
-        // 6. PREVENT DECIMAL MCC WITHDRAWALS
-        // =================================================
-
-        if (
-            !Number.isInteger(amount)
-        ) {
-
-            throw new HttpsError(
-                "invalid-argument",
-                "Withdrawal amount must be a whole number of MCC."
-            );
-
-        }
-
-
-        // =================================================
-        // 7. GET USER WALLET
-        // =================================================
 
         const walletRef =
             db.collection("wallets")
               .doc(uid);
 
 
-        const transactionRef =
-            db.collection(
-                "walletTransactions"
-            )
-            .doc();
-
-
         // =================================================
-        // 8. ATOMIC FIRESTORE TRANSACTION
+        // CHECK WHETHER WALLET ALREADY EXISTS
         // =================================================
 
-        await db.runTransaction(
-            async (transaction) => {
-
-                const walletSnap =
-                    await transaction.get(
-                        walletRef
-                    );
+        const existingWallet =
+            await walletRef.get();
 
 
-                // -----------------------------------------
-                // WALLET MUST EXIST
-                // -----------------------------------------
+        if (existingWallet.exists) {
 
-                if (
-                    !walletSnap.exists
-                ) {
+            const data =
+                existingWallet.data();
 
-                    throw new HttpsError(
-                        "not-found",
-                        "Wallet not found."
-                    );
+            return {
 
-                }
+                success: true,
 
+                existing: true,
 
-                const walletData =
-                    walletSnap.data();
+                walletId:
+                    data.walletId || "",
 
+                balanceMCC:
+                    Number(data.balanceMCC || 0),
 
-                // -----------------------------------------
-                // CHECK WALLET OWNERSHIP
-                // -----------------------------------------
+                lockedMCC:
+                    Number(data.lockedMCC || 0),
 
-                if (
-                    walletData.userId !== uid
-                ) {
-
-                    throw new HttpsError(
-                        "permission-denied",
-                        "This wallet does not belong to you."
-                    );
-
-                }
-
-
-                // -----------------------------------------
-                // CURRENT BALANCE
-                // -----------------------------------------
-
-                const currentBalance =
+                earningsAvailableNGN:
                     Number(
-                        walletData.balanceMCC || 0
-                    );
+                        data.earningsAvailableNGN || 0
+                    ),
+
+                earningsLockedNGN:
+                    Number(
+                        data.earningsLockedNGN || 0
+                    )
+
+            };
+
+        }
 
 
-                // -----------------------------------------
-                // CHECK SUFFICIENT BALANCE
-                // -----------------------------------------
+        // =================================================
+        // CREATE NEW WALLET
+        // =================================================
 
-                if (
-                    amount >
-                    currentBalance
-                ) {
-
-                    throw new HttpsError(
-                        "failed-precondition",
-                        "Insufficient MCC balance."
-                    );
-
-                }
+        const walletId =
+            generateWalletId();
 
 
-                // -----------------------------------------
-                // NEW BALANCE
-                // -----------------------------------------
+        const walletData = {
 
-                const newBalance =
-                    currentBalance -
-                    amount;
+            userId:
+                uid,
+
+            walletId:
+                walletId,
+
+            balanceMCC:
+                0,
+
+            lockedMCC:
+                0,
+
+            earningsAvailableNGN:
+                0,
+
+            earningsLockedNGN:
+                0,
+
+            defaultCurrency:
+                "MCC",
+
+            status:
+                "active",
+
+            createdAt:
+                FieldValue.serverTimestamp(),
+
+            updatedAt:
+                FieldValue.serverTimestamp()
+
+        };
 
 
-                // -----------------------------------------
-                // UPDATE WALLET
-                // -----------------------------------------
-
-                transaction.update(
-                    walletRef,
-                    {
-
-                        balanceMCC:
-                            newBalance,
-
-                        updatedAt:
-                            FieldValue.serverTimestamp()
-
-                    }
-                );
-
-
-                // -----------------------------------------
-                // CREATE PERMANENT TRANSACTION
-                // -----------------------------------------
-
-                transaction.set(
-                    transactionRef,
-                    {
-
-                        userId:
-                            uid,
-
-                        walletId:
-                            walletData.walletId ||
-                            "",
-
-                        type:
-                            "debit",
-
-                        amount:
-                            amount,
-
-                        currency:
-                            "MCC",
-
-                        description:
-                            "Wallet Withdrawal",
-
-                        method:
-                            "bank",
-
-                        account:
-                            account,
-
-                        status:
-                            "completed",
-
-                        reference:
-                            "WDR-" +
-                            Date.now() +
-                            "-" +
-                            Math.random()
-                                .toString(36)
-                                .substring(2, 7)
-                                .toUpperCase(),
-
-                        createdAt:
-                            FieldValue.serverTimestamp()
-
-                    }
-                );
-
-            }
+        await walletRef.set(
+            walletData
         );
 
-
-        // =================================================
-        // 9. RETURN SUCCESS
-        // =================================================
 
         return {
 
             success:
                 true,
 
-            amount:
-                amount,
+            existing:
+                false,
 
-            currency:
-                "MCC",
+            walletId:
+                walletId,
 
-            message:
-                "Withdrawal completed successfully."
+            balanceMCC:
+                0,
+
+            lockedMCC:
+                0,
+
+            earningsAvailableNGN:
+                0,
+
+            earningsLockedNGN:
+                0
 
         };
 
     }
 );
+
 
 // =====================================================
 // SECURE MCC USER-TO-USER TRANSFER
@@ -316,7 +198,7 @@ exports.transferMCC = onCall(
     async (request) => {
 
         // =================================================
-        // 1. REQUIRE AUTHENTICATION
+        // REQUIRE AUTHENTICATION
         // =================================================
 
         if (!request.auth) {
@@ -328,18 +210,20 @@ exports.transferMCC = onCall(
 
         }
 
+
         const senderUid =
             request.auth.uid;
 
 
         // =================================================
-        // 2. READ REQUEST DATA
+        // READ REQUEST
         // =================================================
 
         const recipientWalletId =
             String(
                 request.data?.recipientWalletId || ""
             ).trim();
+
 
         const amount =
             Number(
@@ -348,7 +232,7 @@ exports.transferMCC = onCall(
 
 
         // =================================================
-        // 3. VALIDATE RECIPIENT
+        // VALIDATE RECIPIENT
         // =================================================
 
         if (!recipientWalletId) {
@@ -362,7 +246,7 @@ exports.transferMCC = onCall(
 
 
         // =================================================
-        // 4. VALIDATE AMOUNT
+        // VALIDATE AMOUNT
         // =================================================
 
         if (
@@ -378,10 +262,6 @@ exports.transferMCC = onCall(
         }
 
 
-        // =================================================
-        // 5. MCC MUST BE WHOLE NUMBER
-        // =================================================
-
         if (
             !Number.isInteger(amount)
         ) {
@@ -395,7 +275,7 @@ exports.transferMCC = onCall(
 
 
         // =================================================
-        // 6. GET SENDER WALLET
+        // SENDER WALLET
         // =================================================
 
         const senderWalletRef =
@@ -404,7 +284,7 @@ exports.transferMCC = onCall(
 
 
         // =================================================
-        // 7. FIND RECIPIENT WALLET
+        // FIND RECIPIENT
         // =================================================
 
         const recipientQuery =
@@ -418,18 +298,22 @@ exports.transferMCC = onCall(
 
 
         // =================================================
-        // 8. TRANSACTION
+        // UNIQUE TRANSFER REFERENCE
         // =================================================
 
         const transferReference =
             "TRF-" +
             Date.now() +
             "-" +
-            Math.random()
-                .toString(36)
-                .substring(2, 8)
+            crypto
+                .randomBytes(4)
+                .toString("hex")
                 .toUpperCase();
 
+
+        // =================================================
+        // ATOMIC TRANSACTION
+        // =================================================
 
         await db.runTransaction(
             async (transaction) => {
@@ -461,7 +345,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // VERIFY SENDER WALLET
+                // VERIFY OWNERSHIP
                 // -----------------------------------------
 
                 if (
@@ -477,7 +361,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // FIND RECIPIENT
+                // READ RECIPIENT
                 // -----------------------------------------
 
                 const recipientSnap =
@@ -531,7 +415,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // SENDER BALANCE
+                // BALANCES
                 // -----------------------------------------
 
                 const senderBalance =
@@ -552,7 +436,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // CHECK BALANCE
+                // CHECK AVAILABLE BALANCE
                 // -----------------------------------------
 
                 if (
@@ -568,10 +452,6 @@ exports.transferMCC = onCall(
                 }
 
 
-                // -----------------------------------------
-                // RECIPIENT BALANCE
-                // -----------------------------------------
-
                 const recipientBalance =
                     Number(
                         recipientData.balanceMCC || 0
@@ -579,7 +459,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // CALCULATE NEW BALANCES
+                // NEW BALANCES
                 // -----------------------------------------
 
                 const newSenderBalance =
@@ -629,7 +509,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // SENDER TRANSACTION
+                // SENDER LEDGER ENTRY
                 // -----------------------------------------
 
                 const senderTransactionRef =
@@ -646,8 +526,7 @@ exports.transferMCC = onCall(
                             senderUid,
 
                         walletId:
-                            senderData.walletId ||
-                            "",
+                            senderData.walletId || "",
 
                         type:
                             "debit",
@@ -684,7 +563,7 @@ exports.transferMCC = onCall(
 
 
                 // -----------------------------------------
-                // RECIPIENT TRANSACTION
+                // RECIPIENT LEDGER ENTRY
                 // -----------------------------------------
 
                 const recipientTransactionRef =
@@ -722,8 +601,7 @@ exports.transferMCC = onCall(
                             senderUid,
 
                         senderWalletId:
-                            senderData.walletId ||
-                            "",
+                            senderData.walletId || "",
 
                         status:
                             "completed",
@@ -764,6 +642,389 @@ exports.transferMCC = onCall(
 
             message:
                 "MCC transfer completed successfully."
+
+        };
+
+    }
+);
+
+
+// =====================================================
+// CREATE SECURE NGN EARNINGS WITHDRAWAL REQUEST
+// =====================================================
+
+exports.createEarningsWithdrawal = onCall(
+    async (request) => {
+
+        // =================================================
+        // REQUIRE AUTHENTICATION
+        // =================================================
+
+        if (!request.auth) {
+
+            throw new HttpsError(
+                "unauthenticated",
+                "You must be logged in to withdraw your earnings."
+            );
+
+        }
+
+
+        const uid =
+            request.auth.uid;
+
+
+        // =================================================
+        // READ REQUEST DATA
+        // =================================================
+
+        const amountNGN =
+            Number(
+                request.data?.amountNGN
+            );
+
+
+        const accountNumber =
+            String(
+                request.data?.accountNumber || ""
+            ).trim();
+
+
+        const bankCode =
+            String(
+                request.data?.bankCode || ""
+            ).trim();
+
+
+        // =================================================
+        // VALIDATE AMOUNT
+        // =================================================
+
+        if (
+            !Number.isFinite(amountNGN) ||
+            amountNGN <= 0
+        ) {
+
+            throw new HttpsError(
+                "invalid-argument",
+                "Enter a valid NGN withdrawal amount."
+            );
+
+        }
+
+
+        // =================================================
+        // NGN WITHDRAWAL MUST BE WHOLE NAIRA
+        // =================================================
+
+        if (
+            !Number.isInteger(amountNGN)
+        ) {
+
+            throw new HttpsError(
+                "invalid-argument",
+                "Withdrawal amount must be a whole number of NGN."
+            );
+
+        }
+
+
+        // =================================================
+        // VALIDATE BANK ACCOUNT
+        // =================================================
+
+        if (
+            !/^\d{10}$/.test(accountNumber)
+        ) {
+
+            throw new HttpsError(
+                "invalid-argument",
+                "Enter a valid 10-digit Nigerian bank account number."
+            );
+
+        }
+
+
+        // =================================================
+        // VALIDATE BANK CODE
+        // =================================================
+
+        if (!bankCode) {
+
+            throw new HttpsError(
+                "invalid-argument",
+                "Bank code is required."
+            );
+
+        }
+
+
+        // =================================================
+        // WALLET
+        // =================================================
+
+        const walletRef =
+            db.collection("wallets")
+              .doc(uid);
+
+
+        const withdrawalRef =
+            db.collection(
+                "withdrawals"
+            )
+            .doc();
+
+
+        const transactionRef =
+            db.collection(
+                "walletTransactions"
+            )
+            .doc();
+
+
+        // =================================================
+        // WITHDRAWAL REFERENCE
+        // =================================================
+
+        const withdrawalReference =
+            "WDR-" +
+            Date.now() +
+            "-" +
+            crypto
+                .randomBytes(4)
+                .toString("hex")
+                .toUpperCase();
+
+
+        // =================================================
+        // ATOMICALLY LOCK EARNINGS
+        // =================================================
+
+        await db.runTransaction(
+            async (transaction) => {
+
+                const walletSnap =
+                    await transaction.get(
+                        walletRef
+                    );
+
+
+                // -----------------------------------------
+                // WALLET MUST EXIST
+                // -----------------------------------------
+
+                if (
+                    !walletSnap.exists
+                ) {
+
+                    throw new HttpsError(
+                        "not-found",
+                        "Wallet not found."
+                    );
+
+                }
+
+
+                const walletData =
+                    walletSnap.data();
+
+
+                // -----------------------------------------
+                // VERIFY OWNERSHIP
+                // -----------------------------------------
+
+                if (
+                    walletData.userId !== uid
+                ) {
+
+                    throw new HttpsError(
+                        "permission-denied",
+                        "This wallet does not belong to you."
+                    );
+
+                }
+
+
+                // -----------------------------------------
+                // AVAILABLE EARNINGS
+                // -----------------------------------------
+
+                const availableEarnings =
+                    Number(
+                        walletData.earningsAvailableNGN || 0
+                    );
+
+
+                const lockedEarnings =
+                    Number(
+                        walletData.earningsLockedNGN || 0
+                    );
+
+
+                // -----------------------------------------
+                // CHECK BALANCE
+                // -----------------------------------------
+
+                if (
+                    amountNGN >
+                    availableEarnings
+                ) {
+
+                    throw new HttpsError(
+                        "failed-precondition",
+                        "Insufficient available earnings."
+                    );
+
+                }
+
+
+                // -----------------------------------------
+                // MOVE AVAILABLE → LOCKED
+                // -----------------------------------------
+
+                const newAvailable =
+                    availableEarnings -
+                    amountNGN;
+
+
+                const newLocked =
+                    lockedEarnings +
+                    amountNGN;
+
+
+                transaction.update(
+                    walletRef,
+                    {
+
+                        earningsAvailableNGN:
+                            newAvailable,
+
+                        earningsLockedNGN:
+                            newLocked,
+
+                        updatedAt:
+                            FieldValue.serverTimestamp()
+
+                    }
+                );
+
+
+                // -----------------------------------------
+                // CREATE WITHDRAWAL
+                // -----------------------------------------
+
+                transaction.set(
+                    withdrawalRef,
+                    {
+
+                        userId:
+                            uid,
+
+                        walletId:
+                            walletData.walletId || "",
+
+                        amountNGN:
+                            amountNGN,
+
+                        currency:
+                            "NGN",
+
+                        accountNumber:
+                            accountNumber,
+
+                        bankCode:
+                            bankCode,
+
+                        status:
+                            "pending",
+
+                        provider:
+                            "flutterwave",
+
+                        reference:
+                            withdrawalReference,
+
+                        createdAt:
+                            FieldValue.serverTimestamp(),
+
+                        updatedAt:
+                            FieldValue.serverTimestamp()
+
+                    }
+                );
+
+
+                // -----------------------------------------
+                // CREATE LEDGER ENTRY
+                // -----------------------------------------
+
+                transaction.set(
+                    transactionRef,
+                    {
+
+                        userId:
+                            uid,
+
+                        walletId:
+                            walletData.walletId || "",
+
+                        type:
+                            "withdrawal",
+
+                        amount:
+                            amountNGN,
+
+                        currency:
+                            "NGN",
+
+                        description:
+                            "Earnings Withdrawal Request",
+
+                        method:
+                            "bank",
+
+                        withdrawalId:
+                            withdrawalRef.id,
+
+                        reference:
+                            withdrawalReference,
+
+                        status:
+                            "pending",
+
+                        createdAt:
+                            FieldValue.serverTimestamp()
+
+                    }
+                );
+
+            }
+        );
+
+
+        // =================================================
+        // RETURN PENDING STATUS
+        // =================================================
+
+        return {
+
+            success:
+                true,
+
+            status:
+                "pending",
+
+            amountNGN:
+                amountNGN,
+
+            currency:
+                "NGN",
+
+            reference:
+                withdrawalReference,
+
+            message:
+                "Withdrawal request created successfully. Payment will be processed after provider verification."
 
         };
 
