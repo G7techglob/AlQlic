@@ -5,7 +5,7 @@ import {
   sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 // Firebase config (YOUR REAL DATA)
 const firebaseConfig = {
   apiKey: "AIzaSyCVdy9nJLp3YDV9PNB9kfR3HiQCdFdvGmg",
@@ -20,6 +20,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
 
 // REGISTER BUTTON
 document.getElementById("registerBtn").addEventListener("click", async () => {
@@ -48,31 +49,25 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
 
     console.log("User profile saved successfully");
 
+
 // 3. Create MatchConnect wallet automatically
-const walletId =
-  "MC-" +
-  Math.random()
-    .toString(36)
-    .substring(2, 10)
-    .toUpperCase();
+//    through the secure Firebase backend
 
-await setDoc(doc(db, "wallets", user.uid), {
+const createWallet =
+  httpsCallable(
+    functions,
+    "createWallet"
+  );
 
-  userId: user.uid,
+const walletResult =
+  await createWallet();
 
-  walletId: walletId,
-
-  balanceMCC: 0,
-
-  defaultCurrency: "MCC",
-
-  createdAt: new Date()
-
-});
+const walletData =
+  walletResult.data;
 
 console.log(
   "Wallet created successfully:",
-  walletId
+  walletData.walletId
 );
 
 // Send verification email
