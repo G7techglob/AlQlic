@@ -939,7 +939,7 @@ exports.createEarningsWithdrawal = onCall(
                             "pending",
 
                         provider:
-                            "flutterwave",
+                             null,
 
                         reference:
                             withdrawalReference,
