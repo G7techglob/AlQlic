@@ -799,8 +799,10 @@ async function processDeposit() {
     }
 
 }
+
 /* =====================================================
    WITHDRAW
+   SECURE EARNINGS WITHDRAWAL
 ===================================================== */
 
 function openWithdraw() {
@@ -808,305 +810,134 @@ function openWithdraw() {
     modalContent.innerHTML = `
 
         <h2 class="modal-title">
-            Withdraw Money
+            Withdraw Earnings
         </h2>
-
 
         <div class="form-group">
 
             <label>
-                Amount
+                Amount (NGN)
             </label>
 
             <input
                 id="withdrawAmount"
                 type="number"
                 min="1"
-                placeholder="Enter amount"
+                step="1"
+                placeholder="Enter amount in NGN"
             >
 
         </div>
 
-
         <div class="form-group">
 
             <label>
-                Bank Account
+                Bank Account Number
             </label>
 
             <input
                 id="withdrawAccount"
                 type="text"
-                placeholder="Account number"
+                inputmode="numeric"
+                maxlength="10"
+                placeholder="Enter 10-digit account number"
             >
 
         </div>
 
+        <div class="form-group">
+
+            <label>
+                Bank Code
+            </label>
+
+            <input
+                id="withdrawBankCode"
+                type="text"
+                inputmode="numeric"
+                placeholder="Enter bank code"
+            >
+
+        </div>
+
+        <p
+            style="
+                font-size:12px;
+                color:#777;
+                line-height:1.5;
+                margin:10px 0 15px;
+            "
+        >
+            Your withdrawal will be securely processed
+            after your earnings are verified.
+        </p>
 
         <button
-    id="withdrawButton"
-    class="modal-action"
-    onclick="createWithdrawalRequest()"
->
-    Withdraw
-</button>
+            id="withdrawButton"
+            class="modal-action"
+            onclick="submitEarningsWithdrawal()"
+        >
+            Withdraw
+        </button>
 
     `;
-
 
     openPaymentModal();
 
 }
 
 
-
 /* =====================================================
-   CREATE WITHDRAWAL REQUEST
-   FUTURE SECURE PAYMENT ARCHITECTURE
+   SUBMIT EARNINGS WITHDRAWAL
+   SECURE CLOUD FUNCTION
 ===================================================== */
 
-async function createWithdrawalRequest() {
+async function submitEarningsWithdrawal() {
 
-        const button =
-        document.querySelector(
-            "#withdrawButton"
+    const button =
+        document.getElementById(
+            "withdrawButton"
         );
 
-    if (button) {
-        button.disabled = true;
-        button.textContent = "Submitting...";
-    }
-
-    const amount =
-        Number(
-            document.getElementById(
-                "withdrawAmount"
-            ).value
+    const amountInput =
+        document.getElementById(
+            "withdrawAmount"
         );
 
-    const account =
+    const accountInput =
         document.getElementById(
             "withdrawAccount"
-        ).value.trim();
-
-
-    if (
-    !amount ||
-    amount <= 0
-) {
-
-    showToast(
-        "Enter a valid amount"
-    );
-
-    if (button) {
-        button.disabled = false;
-        button.textContent = "Withdraw";
-    }
-
-    return;
-
-    }
-
-
-    if (!account) {
-
-    showToast(
-        "Enter your bank account"
-    );
-
-    if (button) {
-        button.disabled = false;
-        button.textContent = "Withdraw";
-    }
-
-    return;
-
-    }
-
-
-    const user =
-        auth.currentUser;
-
-
-    if (!user) {
-
-    showToast(
-        "Please log in first"
-    );
-
-    if (button) {
-        button.disabled = false;
-        button.textContent = "Withdraw";
-    }
-
-    return;
-
-    }
-
-
-    try {
-
-        const walletRef =
-            doc(
-                db,
-                "wallets",
-                user.uid
-            );
-
-
-        const walletSnap =
-            await getDoc(
-                walletRef
-            );
-
-
-        if (!walletSnap.exists()) {
-
-            showToast(
-                "Wallet not found"
-            );
-
-            return;
-
-        }
-
-
-        const walletData =
-            walletSnap.data();
-
-
-        const lockedBalance =
-    Number(
-        walletData.lockedMCC || 0
-    );
-        const currentBalance =
-    Number(
-        walletData.balanceMCC || 0
-    );
-
-const availableBalance =
-    currentBalance -
-    lockedBalance;
-
-
-        if (
-    amount >
-    availableBalance
-) {
-
-    showToast(
-        "Insufficient available balance"
-    );
-
-    return;
-
-        }
-
-
-        const withdrawalRef =
-            await addDoc(
-                collection(
-                    db,
-                    "withdrawalRequests"
-                ),
-                {
-    userId:
-        user.uid,
-
-    walletId:
-        walletData.walletId ||
-        wallet.walletId,
-
-    amount:
-        amount,
-
-    currency:
-        "MCC",
-
-    bankAccount:
-        account,
-
-    status:
-        "pending",
-
-    provider:
-        null,
-
-    providerReference:
-        null,
-
-    failureReason:
-        null,
-
-    processedAt:
-        null,
-
-    createdAt:
-        serverTimestamp()
-                }
-            );
-
-
-        console.log(
-            "Withdrawal request created:",
-            withdrawalRef.id
         );
 
-
-        closePaymentModal();
-
-
-        showToast(
-            "Withdrawal request submitted"
-        );
-
-
-    }
-
-    catch (error) {
-
-    console.error(
-        "Withdrawal request error:",
-        error
-    );
-
-    if (button) {
-        button.disabled = false;
-        button.textContent = "Withdraw";
-    }
-
-    showToast(
-        "Unable to submit withdrawal request"
-    );
-
-    }
-}
-/* =====================================================
-   PROCESS WITHDRAW
-===================================================== */
-async function processWithdraw() {
-
-    const amount =
-        Number(
-            document.getElementById(
-                "withdrawAmount"
-            ).value
-        );
-
-    const account =
+    const bankCodeInput =
         document.getElementById(
-            "withdrawAccount"
-        ).value.trim();
+            "withdrawBankCode"
+        );
 
+
+    const amountNGN =
+        Number(
+            amountInput.value
+        );
+
+    const accountNumber =
+        accountInput.value.trim();
+
+    const bankCode =
+        bankCodeInput.value.trim();
+
+
+    /* ==========================================
+       VALIDATE AMOUNT
+    ========================================== */
 
     if (
-        !amount ||
-        amount <= 0
+        !Number.isInteger(amountNGN) ||
+        amountNGN <= 0
     ) {
 
         showToast(
-            "Enter a valid amount"
+            "Enter a valid whole NGN amount"
         );
 
         return;
@@ -1114,16 +945,43 @@ async function processWithdraw() {
     }
 
 
-    if (!account) {
+    /* ==========================================
+       VALIDATE ACCOUNT NUMBER
+    ========================================== */
+
+    if (
+        !/^\d{10}$/.test(
+            accountNumber
+        )
+    ) {
 
         showToast(
-            "Enter your bank account"
+            "Enter a valid 10-digit bank account number"
         );
 
         return;
 
     }
 
+
+    /* ==========================================
+       VALIDATE BANK CODE
+    ========================================== */
+
+    if (!bankCode) {
+
+        showToast(
+            "Enter your bank code"
+        );
+
+        return;
+
+    }
+
+
+    /* ==========================================
+       REQUIRE LOGIN
+    ========================================== */
 
     const user =
         auth.currentUser;
@@ -1140,163 +998,158 @@ async function processWithdraw() {
     }
 
 
-    const walletRef =
-        doc(
-            db,
-            "wallets",
-            user.uid
-        );
+    /* ==========================================
+       PREVENT DOUBLE SUBMISSION
+    ========================================== */
 
+    if (button) {
 
-    const transactionRef =
-        doc(
-            collection(
-                db,
-                "walletTransactions"
-            )
-        );
+        button.disabled =
+            true;
+
+        button.textContent =
+            "Submitting...";
+
+    }
 
 
     try {
 
-        await runTransaction(
-            db,
-            async (transaction) => {
+        /* ======================================
+           CONNECT TO SECURE CLOUD FUNCTION
+        ====================================== */
 
-                const walletSnap =
-                    await transaction.get(
-                        walletRef
-                    );
-
-
-                if (
-                    !walletSnap.exists()
-                ) {
-
-                    throw new Error(
-                        "Wallet not found"
-                    );
-
-                }
+        const createEarningsWithdrawal =
+            httpsCallable(
+                functions,
+                "createEarningsWithdrawal"
+            );
 
 
-                const walletData =
-                    walletSnap.data();
+        /* ======================================
+           SEND REQUEST TO BACKEND
+        ====================================== */
+
+        const result =
+            await createEarningsWithdrawal({
+
+                amountNGN:
+                    amountNGN,
+
+                accountNumber:
+                    accountNumber,
+
+                bankCode:
+                    bankCode
+
+            });
 
 
-                const currentBalance =
-                    Number(
-                        walletData.balanceMCC || 0
-                    );
+        /* ======================================
+           SUCCESS
+        ====================================== */
+
+        if (
+            result.data &&
+            result.data.success
+        ) {
+
+            closePaymentModal();
+
+            await loadWallet();
+
+            await loadTransactions();
+
+            showToast(
+                "Withdrawal request submitted successfully"
+            );
+
+            console.log(
+                "Withdrawal created:",
+                result.data
+            );
+
+            return;
+
+        }
 
 
-                if (
-                    amount >
-                    currentBalance
-                ) {
-
-                    throw new Error(
-                        "Insufficient balance"
-                    );
-
-                }
-
-
-                const newBalance =
-                    currentBalance -
-                    amount;
-
-
-                transaction.update(
-                    walletRef,
-                    {
-                        balanceMCC:
-                            newBalance
-                    }
-                );
-
-
-                transaction.set(
-                    transactionRef,
-                    {
-
-                        userId:
-                            user.uid,
-
-                        walletId:
-                            walletData.walletId ||
-                            wallet.walletId,
-
-                        type:
-                            "debit",
-
-                        amount:
-                            amount,
-
-                        currency:
-                            "MCC",
-
-                        description:
-                            "Wallet Withdrawal",
-
-                        method:
-                            "bank",
-
-                        account:
-                            account,
-
-                        status:
-                            "completed",
-
-                        reference:
-                            "WDR-" +
-                            Date.now(),
-
-                        createdAt:
-                            serverTimestamp()
-
-                    }
-                );
-
-            }
+        throw new Error(
+            "Withdrawal request was not accepted."
         );
-
-
-        wallet.balance -=
-            amount;
-
-
-        renderWallet();
-
-
-        closePaymentModal();
-
-
-        await loadTransactions();
-
-
-        showToast(
-            `${formatMoney(amount)} withdrawn from your wallet`
-        );
-
 
     }
 
     catch (error) {
 
         console.error(
-            "Withdrawal error:",
+            "Earnings withdrawal error:",
             error
         );
 
 
+        /* ======================================
+           RESTORE BUTTON
+        ====================================== */
+
+        if (button) {
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "Withdraw";
+
+        }
+
+
+        /* ======================================
+           FIREBASE FUNCTION ERRORS
+        ====================================== */
+
         if (
-            error.message ===
-            "Insufficient balance"
+            error.code ===
+            "functions/unauthenticated"
         ) {
 
             showToast(
-                "Insufficient balance"
+                "Please log in again."
+            );
+
+        }
+
+        else if (
+            error.code ===
+            "functions/invalid-argument"
+        ) {
+
+            showToast(
+                error.message ||
+                "Invalid withdrawal details."
+            );
+
+        }
+
+        else if (
+            error.code ===
+            "functions/failed-precondition"
+        ) {
+
+            showToast(
+                error.message ||
+                "Insufficient available earnings."
+            );
+
+        }
+
+        else if (
+            error.code ===
+            "functions/not-found"
+        ) {
+
+            showToast(
+                error.message ||
+                "Wallet not found."
             );
 
         }
@@ -1304,16 +1157,15 @@ async function processWithdraw() {
         else {
 
             showToast(
-                "Withdrawal failed"
+                error.message ||
+                "Unable to submit withdrawal."
             );
 
         }
 
     }
 
-            }
-
-
+}
 
 /* =====================================================
    SEND
@@ -1933,8 +1785,8 @@ window.processDeposit =
 window.openWithdraw =
     openWithdraw;
 
-window.processWithdraw =
-    processWithdraw;
+window.submitEarningsWithdrawal =
+    submitEarningsWithdrawal;
 
 window.openSendMoney =
     openSendMoney;
@@ -1956,6 +1808,3 @@ window.openTransactionHistory =
 
 window.closePaymentModal =
     closePaymentModal;
-
-window.createWithdrawalRequest =
-    createWithdrawalRequest;
