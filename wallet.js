@@ -139,8 +139,9 @@ function formatMoney(amount) {
     return `${Number(amount).toLocaleString("en-US")} MCC`;
 
 }
+
 /* =====================================================
-   LOAD WALLET FROM FIRESTORE
+   LOAD WALLET 
 ===================================================== */
 
 async function loadWallet() {
@@ -166,73 +167,74 @@ async function loadWallet() {
             );
 
 
-        const walletSnap =
+        let walletSnap =
             await getDoc(
                 walletRef
             );
 
 
+        /* =================================================
+           WALLET DOES NOT EXIST
+           CREATE IT THROUGH SECURE CLOUD FUNCTION
+        ================================================= */
+
         if (!walletSnap.exists()) {
 
-    console.log(
-        "Wallet not found. Creating wallet..."
-    );
+            console.log(
+                "Wallet not found. Creating wallet securely..."
+            );
 
-    const newWalletId =
-        "MC-" +
-        Math.random()
-            .toString(36)
-            .substring(2, 10)
-            .toUpperCase();
 
-    await setDoc(
-        walletRef,
-        {
-            userId:
-                user.uid,
+            const createWallet =
+                httpsCallable(
+                    functions,
+                    "createWallet"
+                );
 
-            walletId:
-                newWalletId,
 
-            balanceMCC:
-                0,
+            const result =
+                await createWallet();
 
-            lockedMCC: 
-                0,
-            
-            defaultCurrency:
-                "MCC",
 
-            createdAt:
-                serverTimestamp()
-        }
-    );
+            if (
+                !result.data ||
+                !result.data.success
+            ) {
 
-    wallet.balance =
-        0;
+                throw new Error(
+                    "Unable to create wallet."
+                );
 
-    wallet.walletId =
-        newWalletId;
+            }
 
-    wallet.userId =
-        user.uid;
 
-    wallet.currency =
-        "MCC";
+            console.log(
+                "Wallet created securely:",
+                result.data
+            );
 
-    renderWallet();
 
-    await loadTransactions();
+            // Read the newly-created wallet again
+            walletSnap =
+                await getDoc(
+                    walletRef
+                );
 
-    console.log(
-        "New wallet created:",
-        wallet
-    );
 
-    return;
+            if (!walletSnap.exists()) {
+
+                throw new Error(
+                    "Wallet was created but could not be loaded."
+                );
+
+            }
 
         }
 
+
+        /* =================================================
+           LOAD WALLET DATA
+        ================================================= */
 
         const data =
             walletSnap.data();
@@ -243,10 +245,12 @@ async function loadWallet() {
                 data.balanceMCC || 0
             );
 
+
         wallet.locked =
-    Number(
-        data.lockedMCC || 0
-    );
+            Number(
+                data.lockedMCC || 0
+            );
+
 
         wallet.walletId =
             data.walletId || "";
@@ -262,7 +266,9 @@ async function loadWallet() {
 
         renderWallet();
 
-await loadTransactions();
+
+        await loadTransactions();
+
 
         console.log(
             "Wallet loaded:",
@@ -277,6 +283,7 @@ await loadTransactions();
             "Error loading wallet:",
             error
         );
+
 
         showToast(
             "Unable to load wallet"
