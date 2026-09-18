@@ -1,7 +1,7 @@
 {
-  "name": "MatchConnect",
-  "short_name": "MatchConnect",
-  "description": "MatchConnect is a social platform for meeting new people, chatting, and building real connections.",
+  "name": "AlQlic",
+  "short_name": "AlQlic",
+  "description": "AlQlic is a social platform for meeting new people, chatting, and building real connections.",
 
   "start_url": "/matchconnect-/index.html",
   "scope": "/matchconnect-/",
