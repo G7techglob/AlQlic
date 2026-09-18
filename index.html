@@ -1,112 +1,121 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Primary Meta Tags -->
-  <title> AlQlic- Meet New People Worldwide | Social Platform</title>
-  <meta name="description" content="Connect with people worldwide through live chats, photos, and videos. Join thousands of users on MatchConnect - the global social platform for friendship and real connections.">
+  <title>AlQlic - Meet New People Worldwide | Social Platform</title>
+  <meta name="description" content="Connect with people worldwide through live chats, photos, and videos. Join thousands of users on AlQlic - the global social platform for friendship and real connections.">
   <meta name="theme-color" content="#ff4d6d">
   <meta name="app-version" content="1.0.1">
-   <!-- PWA Manifest -->
+
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  
-  
- <link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
- 
-   <link rel="stylesheet" href="theme/theme.css">
-     <link rel="stylesheet" href="index.css">   
- <link rel="stylesheet" href="navbar.css">
- <link rel="stylesheet" href="create-post.css">
 
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <link rel="stylesheet" href="theme/theme.css">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="navbar.css">
+  <link rel="stylesheet" href="create-post.css">
 
 </head>
+
 <body>
-<!-- Skip to Main Content Link -->
+
+  <!-- Skip to Main Content Link -->
   <a href="#main-content">Skip to main content</a>
 
- <!-- Top Bar -->
- <div class="top-bar">
+  <!-- Top Bar -->
+  <div class="top-bar">
     <a href="notifications.html" class="notification-btn" aria-label="Notifications">
       <i class="fa-regular fa-bell"></i>
     </a>
 
-    <div class="app-name"> AlQlic</div>
+    <div class="app-name">AlQlic</div>
 
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">
-          <i class="fa-solid fa-gear" aria-hidden="true"></i>
+      <i class="fa-solid fa-gear" aria-hidden="true"></i>
     </button>
-</div>
+  </div>
 
-<!-- Advertisement Board - Embedded in Dashboard -->
-<div id="adBoard">
-  <a id="adLink" href="#" target="_blank">
-    <img id="adImage" src="" alt="Advertisement">
-  </a>
-</div>
+  <!-- Advertisement Board - Embedded in Dashboard -->
+  <div id="adBoard">
+    <a id="adLink" href="#" target="_blank">
+      <img id="adImage" src="" alt="Advertisement">
+    </a>
+  </div>
 
- <!-- Header -->
+  <!-- Header -->
   <header role="banner">
-  <!-- Desktop Navigation -->
-  <nav aria-label="Main navigation">
-    <a href="index.html" aria-current="page">Home</a>
-    <a href="profile.html">Profile</a>
-    <a href="notifications.html">Notifications</a>
-    <a href="terms.html">Terms of Service</a>
-    <a href="privacy.html">Privacy Policy</a>
-    <a href="register.html">Create Account</a>
-    <a href="login.html">Login</a>
-    <a href="#" id="desktopLogoutBtn">Logout</a>
-  </nav>
+
+    <!-- Desktop Navigation -->
+    <nav aria-label="Main navigation">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="profile.html">Profile</a>
+      <a href="notifications.html">Notifications</a>
+      <a href="terms.html">Terms of Service</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="register.html">Create Account</a>
+      <a href="login.html">Login</a>
+      <a href="#" id="desktopLogoutBtn">Logout</a>
+    </nav>
+
   </header>
 
   <!-- Main Content -->
-<main id="main-content">
-  <div class="page-content">
+  <main id="main-content">
+    <div class="page-content">
 
-    <!-- Reels Section -->
-    <section id="reels" aria-label="Reels">
-      <h2>Reels</h2>
-      <div id="reelsContainer"></div>
-    </section>
+      <!-- Reels Section -->
+      <section id="reels" aria-label="Reels">
+        <h2>Reels</h2>
+        <div id="reelsContainer"></div>
+      </section>
 
-    <!-- Create Post Section -->
-<section aria-label="Create post">
-  <div id="create-post-container"></div>
-</section>
+      <!-- Create Post Section -->
+      <section aria-label="Create post">
+        <div id="create-post-container"></div>
+      </section>
 
-    <!-- Feed Section -->
-    <section id="feed" aria-label="Posts feed">
-      <div>
-        <h2>Latest Posts</h2>
-        <div id="postsContainer" role="region" aria-live="polite" aria-label="Posts list"></div>
-      </div>
-    </section>
+      <!-- Feed Section -->
+      <section id="feed" aria-label="Posts feed">
+        <div>
+          <h2>Latest Posts</h2>
+          <div id="postsContainer"
+               role="region"
+               aria-live="polite"
+               aria-label="Posts list"></div>
+        </div>
+      </section>
 
-    <!-- Featured Profiles Section -->
-    <section id="profiles" aria-label="Featured profiles">
-      <div>
-        <h2>Featured Profiles</h2>
-        <div id="profiles-container" role="region" aria-live="polite"></div>
-      </div>
-    </section>
-  </div>
+      <!-- Featured Profiles Section -->
+      <section id="profiles" aria-label="Featured profiles">
+        <div>
+          <h2>Featured Profiles</h2>
+          <div id="profiles-container"
+               role="region"
+               aria-live="polite"></div>
+        </div>
+      </section>
 
+    </div>
   </main>
 
   <div id="navbar-container"></div>
 
-<script type="module" src="navbar.js"></script>
+  <script type="module" src="navbar.js"></script>
+
   <!-- Scripts -->
   <script type="module" src="posts.js" defer></script>
-  
+
   <script type="module" src="index.js"></script>
-  
+
   <script defer>
-   if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
           .then(registration => {
@@ -119,10 +128,9 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     }
   </script>
 
-
   <script type="module" src="reels.js"></script>
 
-<script src="theme/theme.js"></script>
-</body>
+  <script src="theme/theme.js"></script>
 
+</body>
 </html>
