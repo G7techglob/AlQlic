@@ -17,9 +17,6 @@ import {
 import {
     httpsCallable
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
-/* =====================================================
-   MATCHCONNECT WALLET
-===================================================== */
 
 
 /* =====================================================
@@ -876,7 +873,7 @@ function openWithdraw() {
             "
         >
             Your withdrawal will be securely processed
-            after your earnings are verified.
+after your available balance is confirmed.
         </p>
 
         <button
@@ -1490,7 +1487,7 @@ function openReceiveMoney() {
             "
         >
             Give your Wallet ID to another
-            MatchConnect user to receive money.
+            AlQlic user to receive money.
         </p>
 
     `;
