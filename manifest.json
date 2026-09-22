@@ -4,7 +4,7 @@
   "description": "AlQlic is a social platform for meeting new people, chatting, and building real connections.",
 
   "start_url": "/AlQlic/index.html",
-"scope": "/AlQlic/",
+  "scope": "/AlQlic/",
 
   "display": "standalone",
 
