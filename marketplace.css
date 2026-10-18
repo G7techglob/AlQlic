@@ -121,11 +121,9 @@ body {
 ===================================================== */
 
 .marketplace-container {
-    width: 100%;
-    max-width: 1100px;
-
+    width: calc(100% - 24px);
+    max-width: 950px;
     margin: 0 auto;
-
     padding: 85px 10px 40px;
 }
 
