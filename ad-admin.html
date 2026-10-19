@@ -4,127 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>AlQlic Advertisement Admin</title>
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, Helvetica, sans-serif;
-        }
-
-        body {
-            background: #f4f6fb;
-            color: #222;
-        }
-
-        header {
-            background: #172554;
-            color: white;
-            padding: 22px;
-        }
-
-        header h1 {
-            font-size: 24px;
-            margin-bottom: 6px;
-        }
-
-        header p {
-            color: #cbd5e1;
-            font-size: 14px;
-        }
-
-        .container {
-            width: 94%;
-            max-width: 1100px;
-            margin: 25px auto;
-        }
-
-        .summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .card, .panel {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.05);
-        }
-
-        .card p {
-            color: #64748b;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .card h2 {
-            color: #172554;
-            font-size: 27px;
-        }
-
-        .panel {
-            margin-bottom: 22px;
-        }
-
-        .panel h2 {
-            font-size: 19px;
-            margin-bottom: 16px;
-        }
-
-        .location {
-            padding: 15px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 9px;
-            margin-bottom: 12px;
-        }
-
-        .location h3 {
-            font-size: 16px;
-            margin-bottom: 6px;
-        }
-
-        .location p {
-            font-size: 14px;
-            color: #64748b;
-            line-height: 1.6;
-        }
-
-        .status {
-            display: inline-block;
-            background: #fef3c7;
-            color: #92400e;
-            padding: 5px 9px;
-            border-radius: 20px;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-
-        .note {
-            background: #eff6ff;
-            border-left: 4px solid #2563eb;
-            padding: 14px;
-            border-radius: 5px;
-            line-height: 1.6;
-            font-size: 14px;
-        }
-
-        footer {
-            text-align: center;
-            color: #64748b;
-            padding: 25px;
-            font-size: 13px;
-        }
-    </style>
+    <link rel="stylesheet" href="ad-admin.css">
 </head>
 
 <body>
 
-    <header>
+    <header class="admin-header">
         <h1>AlQlic Advertisement Admin</h1>
         <p>Manage advertising across the AlQlic platform.</p>
     </header>
@@ -132,6 +20,7 @@
     <main class="container">
 
         <section class="summary">
+
             <div class="card">
                 <p>Advertising Locations</p>
                 <h2>2</h2>
@@ -151,6 +40,7 @@
                 <p>Subscription Period</p>
                 <h2>1 month</h2>
             </div>
+
         </section>
 
         <section class="panel">
@@ -168,9 +58,8 @@
             <div class="location">
                 <h3>Marketplace Billboard</h3>
                 <p>
-                    Seven client ad slots. One advertisement is
-                    displayed at a time and flips to the next
-                    eligible client ad every 20 minutes.
+                    Seven client advertising slots. One advert
+                    displays at a time and changes every 20 minutes.
                 </p>
                 <span class="status">7 Client Slots</span>
             </div>
@@ -180,20 +69,18 @@
             <h2>Subscription Rules</h2>
 
             <div class="note">
-                Each client's advertisement runs for one paid month.
-                When its subscription expires, the advertisement must
-                stop appearing until renewal payment is confirmed.
-                An expired slot can then be assigned to another client.
+                Each advertisement runs for one paid month.
+                When payment expires, the advertisement stops
+                displaying until renewal is confirmed.
             </div>
         </section>
 
         <section class="panel">
-            <h2>Next Development Stage</h2>
-            <p>
-                Connect this dashboard to secure administrator
-                authentication and a database for managing client
-                advertisements, uploaded images, payments, subscription
-                dates, renewals and automatic billboard rotation.
+            <h2>Advertisement Management</h2>
+
+            <p id="adminMessage">
+                Advertisement management will be connected
+                in the next development stage.
             </p>
         </section>
 
@@ -202,6 +89,8 @@
     <footer>
         AlQlic Advertisement Management
     </footer>
+
+    <script src="ad-admin.js"></script>
 
 </body>
 </html>
