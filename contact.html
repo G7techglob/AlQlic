@@ -1,48 +1,138 @@
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contact MatchConnect</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="contact.css">
+    <title>Contact AlQlic</title>
 
+    <meta
+        name="description"
+        content="Contact AlQlic for assistance, questions, feedback and support."
+    >
+
+    <link rel="stylesheet" href="contact.css">
 </head>
 
 <body>
 
-<header class="header">
-    <h1>Contact Us</h1>
-    <p>We are here to help and support you</p>
-</header>
+    <!-- HEADER -->
 
-<div class="container">
+    <header class="header">
+        <h1>Contact AlQlic</h1>
+        <p>We are here to help and support you.</p>
+    </header>
 
-    <div class="card">
 
-        <h2>Get in Touch</h2>
+    <!-- MAIN CONTENT -->
 
-        <form>
-            <input type="text" placeholder="Your Name" required>
-            <input type="email" placeholder="Your Email" required>
-            <textarea rows="6" placeholder="Your Message"></textarea>
-            <button type="submit">Send Message</button>
-        </form>
+    <main class="container">
 
-        <p class="email">
-            Email: support@matchconnect.com
-        </p>
+        <section class="card">
 
-    </div>
+            <h2>Get in Touch</h2>
 
-</div>
+            <p class="intro">
+                Have a question, need assistance, or want to give us
+                feedback? Contact the AlQlic support team.
+            </p>
 
-<footer class="footer">
-    <p>© 2026 MatchConnect</p>
-</footer>
+            <!-- CONTACT FORM -->
+
+            <form id="contactForm">
+
+                <label for="name">Your Name</label>
+
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Enter your full name"
+                    autocomplete="name"
+                    required
+                >
+
+                <label for="email">Your Email Address</label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    autocomplete="email"
+                    required
+                >
+
+                <label for="subject">Subject</label>
+
+                <input
+                    type="text"
+                    id="subject"
+                    name="subject"
+                    placeholder="What is your message about?"
+                    required
+                >
+
+                <label for="message">Your Message</label>
+
+                <textarea
+                    id="message"
+                    name="message"
+                    rows="6"
+                    placeholder="Write your message here..."
+                    required
+                ></textarea>
+
+                <button type="submit">
+                    Send Message
+                </button>
+
+                <p
+                    id="formMessage"
+                    role="status"
+                    aria-live="polite"
+                ></p>
+
+            </form>
+
+
+            <!-- OFFICIAL CONTACT EMAIL -->
+
+            <div class="contact-info">
+
+                <h3>Official AlQlic Support Email</h3>
+
+                <p>
+                    You can also contact us directly by email:
+                </p>
+
+                <a href="mailto:officialalqlic@gmail.com">
+                    officialalqlic@gmail.com
+                </a>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+        <p>&copy; 2026 AlQlic. All rights reserved.</p>
+    </footer>
+
+
+    <!-- NAVIGATION -->
 
     <div id="navbar-container"></div>
-    
-<script src="navbar.js"></script>
+
+    <script src="navbar.js"></script>
+
+    <script src="contact.js"></script>
+
 </body>
 </html>
