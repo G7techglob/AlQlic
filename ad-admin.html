@@ -94,7 +94,75 @@
                 when the JavaScript connection is completed.
             </div>
 
-            <div id="advertisementList"></div>
+          ```html
+<!-- ADD OR UPDATE BILLBOARD ADVERTISEMENT -->
+
+<div class="location">
+
+    <h3>Add or Update Billboard Advertisement</h3>
+
+    <form id="advertisementForm">
+
+        <label for="slotNumber">Select Billboard Slot</label>
+
+        <select id="slotNumber" required>
+            <option value="">Choose a slot</option>
+            <option value="1">Slot 1</option>
+            <option value="2">Slot 2</option>
+            <option value="3">Slot 3</option>
+            <option value="4">Slot 4</option>
+            <option value="5">Slot 5</option>
+            <option value="6">Slot 6</option>
+            <option value="7">Slot 7</option>
+        </select>
+
+        <br><br>
+
+        <label for="advertTitle">Advertisement Title</label>
+
+        <input
+            type="text"
+            id="advertTitle"
+            placeholder="Enter advert title"
+            required
+        >
+
+        <br><br>
+
+        <label for="advertImage">Advertisement Image URL</label>
+
+        <input
+            type="url"
+            id="advertImage"
+            placeholder="https://example.com/image.jpg"
+            required
+        >
+
+        <br><br>
+
+        <label for="advertDestination">Destination Link</label>
+
+        <input
+            type="url"
+            id="advertDestination"
+            placeholder="https://example.com"
+            required
+        >
+
+        <br><br>
+
+        <button type="submit">Prepare Advertisement</button>
+
+    </form>
+
+    <p id="formMessage"></p>
+
+</div>
+
+<!-- DISPLAY THE SEVEN BILLBOARD SLOTS -->
+
+<div id="advertisementList"></div>
+
 
         </section>
 
