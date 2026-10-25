@@ -1,31 +1,69 @@
-
+```javascript
 /* =========================================
-   ALQLIC ADVERTISEMENT ADMIN
+   ALQLIC MARKETPLACE BILLBOARD ADMIN
 ========================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    const adminMessage = document.getElementById("adminMessage");
-
-    // Advertising system settings
+    // Billboard configuration
     const billboardSettings = {
         totalSlots: 7,
         rotationMinutes: 20,
         subscriptionDays: 30
     };
 
-    // Display the current system configuration
+    // Admin page elements
+    const adminMessage = document.getElementById("adminMessage");
+    const advertisementList =
+        document.getElementById("advertisementList");
+
+    // Display billboard settings
     if (adminMessage) {
         adminMessage.textContent =
-            "System settings: " +
+            "Billboard configuration: " +
             billboardSettings.totalSlots +
-            " billboard slots, one advert displayed at a time, " +
+            " advertising slots, one advert displayed at a time, " +
             "rotation every " +
             billboardSettings.rotationMinutes +
-            " minutes, and a paid advertising period of one month.";
+            " minutes, and a " +
+            billboardSettings.subscriptionDays +
+            "-day subscription.";
     }
 
-    console.log("AlQlic Advertisement Admin loaded.");
+    // Display the seven billboard slots
+    if (advertisementList) {
+
+        advertisementList.innerHTML = "";
+
+        for (let slot = 1;
+             slot <= billboardSettings.totalSlots;
+             slot++) {
+
+            const slotCard = document.createElement("div");
+            slotCard.className = "location";
+
+            const heading = document.createElement("h3");
+            heading.textContent =
+                "Marketplace Billboard Slot " + slot;
+
+            const description = document.createElement("p");
+            description.textContent =
+                "Ready for an advertisement to be assigned.";
+
+            const status = document.createElement("span");
+            status.className = "status";
+            status.textContent = "Slot " + slot + " — Unassigned";
+
+            slotCard.appendChild(heading);
+            slotCard.appendChild(description);
+            slotCard.appendChild(status);
+
+            advertisementList.appendChild(slotCard);
+        }
+    }
+
+    console.log("AlQlic Marketplace Billboard Admin loaded.");
     console.log("Billboard settings:", billboardSettings);
 
 });
+```
