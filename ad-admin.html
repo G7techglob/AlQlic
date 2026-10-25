@@ -1,11 +1,11 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>AlQlic Advertisement Admin</title>
+    <title>AlQlic Marketplace Billboard Admin</title>
 
     <link rel="stylesheet" href="ad-admin.css">
 </head>
@@ -13,18 +13,15 @@
 <body>
 
     <header class="admin-header">
-        <h1>AlQlic Advertisement Admin</h1>
-        <p>Manage advertising across the AlQlic platform.</p>
+        <h1>AlQlic Marketplace Billboard Admin</h1>
+        <p>Manage client advertisements displayed on the AlQlic Marketplace billboard.</p>
     </header>
 
     <main class="container">
 
-        <section class="summary">
+        <!-- BILLBOARD SUMMARY -->
 
-            <div class="card">
-                <p>Advertising Locations</p>
-                <h2>2</h2>
-            </div>
+        <section class="summary">
 
             <div class="card">
                 <p>Marketplace Ad Slots</p>
@@ -38,59 +35,77 @@
 
             <div class="card">
                 <p>Subscription Period</p>
-                <h2>1 month</h2>
+                <h2>30 days</h2>
+            </div>
+
+            <div class="card">
+                <p>Management Area</p>
+                <h2>Billboard Only</h2>
             </div>
 
         </section>
 
+        <!-- BILLBOARD RULES -->
+
         <section class="panel">
-            <h2>Advertising Locations</h2>
+            <h2>Marketplace Billboard Rules</h2>
 
             <div class="location">
-                <h3>AlQlic Dashboard Ads</h3>
+                <h3>Seven Client Advertising Slots</h3>
+
                 <p>
-                    A separate group of advertisements displayed
-                    on the main AlQlic dashboard.
+                    The billboard supports seven client advertisement
+                    slots. Only one advertisement displays at a time.
                 </p>
-                <span class="status">Separate Ad Group</span>
             </div>
 
             <div class="location">
-                <h3>Marketplace Billboard</h3>
+                <h3>Automatic Advertisement Rotation</h3>
+
                 <p>
-                    Seven client advertising slots. One advert
-                    displays at a time and changes every 20 minutes.
+                    The billboard changes to the next eligible
+                    advertisement every 20 minutes.
                 </p>
-                <span class="status">7 Client Slots</span>
+            </div>
+
+            <div class="location">
+                <h3>Paid Monthly Subscriptions</h3>
+
+                <p>
+                    Each advertisement runs for 30 days after
+                    its subscription is confirmed. Expired adverts
+                    stop displaying until renewal is confirmed.
+                </p>
             </div>
         </section>
 
-        <section class="panel">
-            <h2>Subscription Rules</h2>
-
-            <div class="note">
-                Each advertisement runs for one paid month.
-                When payment expires, the advertisement stops
-                displaying until renewal is confirmed.
-            </div>
-        </section>
+        <!-- ADVERTISEMENT MANAGEMENT -->
 
         <section class="panel">
-            <h2>Advertisement Management</h2>
+            <h2>Manage Marketplace Advertisements</h2>
 
-            <p id="adminMessage">
-                Advertisement management will be connected
-                in the next development stage.
+            <p>
+                Use this section to manage advertisements
+                displayed on the Marketplace billboard only.
             </p>
+
+            <div id="adminMessage">
+                Advertisement management will appear here
+                when the JavaScript connection is completed.
+            </div>
+
+            <div id="advertisementList"></div>
+
         </section>
 
     </main>
 
     <footer>
-        AlQlic Advertisement Management
+        AlQlic Marketplace Billboard Administration
     </footer>
 
     <script src="ad-admin.js"></script>
 
 </body>
 </html>
+```
