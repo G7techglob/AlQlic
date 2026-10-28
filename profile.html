@@ -60,24 +60,54 @@
       </p>
     </section>
 
-    <section class="profile-tabs">
+   
 
-  <button id="postsTab">
-    Posts
-  </button>
 
-  <button id="photosTab">
-    Photos
-  </button>
+<section class="profile-tabs" role="tablist" aria-label="Profile content">
 
-  <button id="reelsTab">
-    Reels
-  </button>
+    <button
+        type="button"
+        id="postsTab"
+        class="profile-tab active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="mediaContainer"
+    >
+        All Posts
+    </button>
+
+    <button
+        type="button"
+        id="photosTab"
+        class="profile-tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="mediaContainer"
+    >
+        Photos
+    </button>
+
+    <button
+        type="button"
+        id="reelsTab"
+        class="profile-tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="mediaContainer"
+    >
+        Reels
+    </button>
 
 </section>
 
+<section
+    id="mediaContainer"
+    role="tabpanel"
+    aria-live="polite"
+    aria-label="Selected profile content"
+>
+</section>
 
-<section id="mediaContainer"></section>
 
 <div id="create-post-container"></div>
     
