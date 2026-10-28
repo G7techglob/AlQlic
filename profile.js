@@ -142,27 +142,85 @@ const photosTab = document.getElementById("photosTab");
 const reelsTab = document.getElementById("reelsTab");
 const postsTab = document.getElementById("postsTab");
 
-if (photosTab) {
-  photosTab.onclick = () => {
-    window.location.href = `photos.html?uid=${user.uid}`;
-  };
+const profileTabs = [
+  { button: postsTab, type: "all" },
+  { button: photosTab, type: "photos" },
+  { button: reelsTab, type: "reels" }
+];
+
+function showProfileTab(type) {
+  const postsEl = document.getElementById("myPosts");
+  const mediaContainer = document.getElementById("mediaContainer");
+
+  if (!postsEl) return;
+
+  if (mediaContainer) {
+    mediaContainer.innerHTML = "";
+  }
+
+  postsEl.style.display = "block";
+
+  profileTabs.forEach(({ button, type: tabType }) => {
+    if (!button) return;
+
+    const active = tabType === type;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  const posts = postsEl.querySelectorAll(".post-container");
+  let visibleCount = 0;
+
+  posts.forEach(post => {
+    const hasPhoto = !!post.querySelector(".post-image");
+    const hasVideo = !!post.querySelector(
+      ".post-video, video"
+    );
+
+    const visible =
+      type === "all" ||
+      (type === "photos" && hasPhoto) ||
+      (type === "reels" && hasVideo);
+
+    post.style.display = visible ? "" : "none";
+
+    if (visible) visibleCount++;
+  });
+
+  let emptyMessage = postsEl.querySelector(".tab-empty-message");
+
+  if (!emptyMessage) {
+    emptyMessage = document.createElement("p");
+    emptyMessage.className = "tab-empty-message";
+    postsEl.appendChild(emptyMessage);
+  }
+
+  const oldEmptyMessage = postsEl.querySelector(".no-posts");
+  if (oldEmptyMessage) {
+    oldEmptyMessage.style.display = "none";
+  }
+
+  if (visibleCount === 0) {
+    emptyMessage.textContent =
+      type === "photos"
+        ? "You haven't posted any photos yet."
+        : type === "reels"
+        ? "You haven't posted any reels yet."
+        : "You haven't posted anything yet.";
+
+    emptyMessage.style.display = "block";
+  } else {
+    emptyMessage.style.display = "none";
+  }
 }
 
-if (reelsTab) {
-  reelsTab.onclick = () => {
-    window.location.href = `reels.html?uid=${user.uid}`;
-  };
-}
+profileTabs.forEach(({ button, type }) => {
+  if (button) {
+    button.onclick = () => showProfileTab(type);
+  }
+});
 
-if (postsTab) {
-  postsTab.onclick = () => {
-    const postsEl = document.getElementById("myPosts");
-    const mediaContainer = document.getElementById("mediaContainer");
-
-    if (postsEl) postsEl.style.display = "block";
-    if (mediaContainer) mediaContainer.innerHTML = "";
-  };
-}
+showProfileTab("all");
     
   } catch (error) {
     console.error("Error loading profile:", error);
