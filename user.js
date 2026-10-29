@@ -688,75 +688,85 @@ if (messageBtn && uid) {
   );
 }
 
-// ===============================
-// PHOTOS TAB
-// ===============================
 
-const userPhotosTab =
-  document.getElementById(
-    "userPhotosTab"
-  );
+/* ===============================
+   USER PROFILE TABS
+================================ */
 
-if (userPhotosTab && uid) {
+const userPhotosTab = document.getElementById("userPhotosTab");
+const userReelsTab = document.getElementById("userReelsTab");
+const userPostsTab = document.getElementById("userPostsTab");
 
-  userPhotosTab.addEventListener(
-    "click",
-    () => {
+const userProfileTabs = [
+  { button: userPostsTab, type: "all" },
+  { button: userPhotosTab, type: "photos" },
+  { button: userReelsTab, type: "reels" }
+];
 
-      window.location.href =
-        `media.html?uid=${uid}&type=photos`;
-    }
-  );
+function showUserProfileTab(type) {
+  const postsContainer = document.getElementById("userPosts");
+
+  if (!postsContainer) return;
+
+  userProfileTabs.forEach(({ button, type: tabType }) => {
+    if (!button) return;
+
+    const active = tabType === type;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  const posts = postsContainer.querySelectorAll(".post-container");
+  let visibleCount = 0;
+
+  posts.forEach(post => {
+    const hasPhoto = !!post.querySelector(".post-image");
+    const hasVideo = !!post.querySelector(".post-video, video");
+
+    const visible =
+      type === "all" ||
+      (type === "photos" && hasPhoto) ||
+      (type === "reels" && hasVideo);
+
+    post.style.display = visible ? "" : "none";
+
+    if (visible) visibleCount++;
+  });
+
+  let emptyMessage = postsContainer.querySelector(".tab-empty-message");
+
+  if (!emptyMessage) {
+    emptyMessage = document.createElement("p");
+    emptyMessage.className = "tab-empty-message";
+    postsContainer.appendChild(emptyMessage);
+  }
+
+  const oldEmptyMessage = postsContainer.querySelector(".no-posts");
+
+  if (oldEmptyMessage) {
+    oldEmptyMessage.style.display = "none";
+  }
+
+  if (visibleCount === 0) {
+    emptyMessage.textContent =
+      type === "photos"
+        ? "This user hasn't posted any photos yet."
+        : type === "reels"
+        ? "This user hasn't posted any reels yet."
+        : "This user hasn't posted anything yet.";
+
+    emptyMessage.style.display = "block";
+  } else {
+    emptyMessage.style.display = "none";
+  }
 }
 
-// ===============================
-// REELS TAB
-// ===============================
+userProfileTabs.forEach(({ button, type }) => {
+  if (button) {
+    button.addEventListener("click", () => {
+      showUserProfileTab(type);
+    });
+  }
+});
 
-const userReelsTab =
-  document.getElementById(
-    "userReelsTab"
-  );
-
-if (userReelsTab && uid) {
-
-  userReelsTab.addEventListener(
-    "click",
-    () => {
-
-      window.location.href =
-        `media.html?uid=${uid}&type=reels`;
-    }
-  );
-}
-
-// ===============================
-// POSTS TAB
-// ===============================
-
-const userPostsTab =
-  document.getElementById(
-    "userPostsTab"
-  );
-
-if (userPostsTab) {
-
-  userPostsTab.addEventListener(
-    "click",
-    () => {
-
-      const posts =
-        document.getElementById(
-          "userPosts"
-        );
-
-      if (posts) {
-
-        posts.scrollIntoView({
-          behavior: "smooth"
-        });
-
-      }
-    }
-  );
-}
+showUserProfileTab("all");
