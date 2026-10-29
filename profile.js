@@ -595,7 +595,7 @@ async function handleLikePost(postId) {
       });
     }
 
-    await loadMyPosts();
+    await loadMyPosts(user);
   } catch (error) {
     console.error("Error toggling like:", error);
     showNotification("Error toggling like: " + error.message, true);
