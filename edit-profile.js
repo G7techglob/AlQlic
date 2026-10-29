@@ -58,3 +58,16 @@ document.getElementById("saveProfile").addEventListener("click", async () => {
   alert("Profile updated successfully!");
   window.location.href = "profile.html";
 });
+
+
+const backBtn = document.getElementById("backBtn");
+
+if (backBtn) {
+    backBtn.addEventListener("click", () => {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.href = "profile.html";
+        }
+    });
+}
