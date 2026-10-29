@@ -88,3 +88,37 @@
     background: #f2f2f2;
     color: #333;
 }
+
+/* Keep the user menu button visible on all screen sizes */
+
+.user-page #userMenuContainer {
+    display: block !important;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 44px;
+    min-height: 44px;
+    z-index: 10000;
+    overflow: visible;
+}
+
+.user-page #userMenuContainer .user-menu-container {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    right: 0;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.user-page #userMenuContainer .menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    font-size: 28px;
+    cursor: pointer;
+}
