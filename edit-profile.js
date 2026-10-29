@@ -79,3 +79,41 @@ if (topSaveBtn && saveProfileBtn) {
         saveProfileBtn.click();
     });
 }
+
+const changePhotoBtn = document.getElementById("changePhotoBtn");
+const profilePhotoInput = document.getElementById("profilePhotoInput");
+const profilePhotoPreview = document.getElementById("profilePhotoPreview");
+
+if (changePhotoBtn && profilePhotoInput) {
+    changePhotoBtn.addEventListener("click", () => {
+        profilePhotoInput.click();
+    });
+}
+
+if (profilePhotoInput && profilePhotoPreview) {
+    profilePhotoInput.addEventListener("change", () => {
+        const file = profilePhotoInput.files[0];
+
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            alert("Please select an image file.");
+            profilePhotoInput.value = "";
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("Please choose an image smaller than 5 MB.");
+            profilePhotoInput.value = "";
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            profilePhotoPreview.src = reader.result;
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
