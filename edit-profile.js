@@ -71,3 +71,11 @@ if (backBtn) {
         }
     });
 }
+const topSaveBtn = document.getElementById("topSaveBtn");
+const saveProfileBtn = document.getElementById("saveProfile");
+
+if (topSaveBtn && saveProfileBtn) {
+    topSaveBtn.addEventListener("click", () => {
+        saveProfileBtn.click();
+    });
+}
