@@ -16,12 +16,24 @@
 
     <button type="button" class="save-btn" id="topSaveBtn">Save</button>
     </header>
+
 <section class="profile-photo">
+    <img
+        id="profilePhotoPreview"
+        src="images/default-profile.png"
+        alt="Profile Photo"
+    >
 
-    <img src="images/default-profile.png" alt="Profile Photo">
+    <input
+        type="file"
+        id="profilePhotoInput"
+        accept="image/*"
+        hidden
+    >
 
-    <button>Change Photo</button>
-
+    <button type="button" id="changePhotoBtn">
+        Change Photo
+    </button>
 </section>
 
 <form>
