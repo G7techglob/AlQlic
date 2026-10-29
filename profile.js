@@ -117,6 +117,21 @@ onAuthStateChanged(auth, async (user) => {
     if (profileName) profileName.textContent = data.name || "No Name";
     if (profileEmail) profileEmail.textContent = data.email || user.email || "No Email";
     if (profileBio) profileBio.textContent = data.bio || "No bio yet";
+    const profilePhone = document.getElementById("profilePhone");
+const profileCountry = document.getElementById("profileCountry");
+const profileCity = document.getElementById("profileCity");
+
+if (profilePhone) {
+    profilePhone.textContent = data.phone ? "Phone: " + data.phone : "";
+}
+
+if (profileCountry) {
+    profileCountry.textContent = data.country ? "Country: " + data.country : "";
+}
+
+if (profileCity) {
+    profileCity.textContent = data.city ? "City: " + data.city : "";
+}
     if (profilePhoto) profilePhoto.src = safeImageUrl(data.photoURL);
     if (editName) editName.value = data.name || "";
     if (editBio) editBio.value = data.bio || "";
