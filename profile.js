@@ -297,30 +297,24 @@ async function loadPostCount(user) {
     postCount.textContent = "0";
   }
 }
-// ==================== LOAD POSTS ====================
+
+/* ==================== LOAD POSTS ==================== */
 async function loadMyPosts(user) {
   console.log("STEP 1: loadMyPosts started");
 
   const myPosts = document.getElementById("myPosts");
 
-  if (!myPosts) {
-    console.log("STEP 2: myPosts element NOT FOUND");
-    return;
-  }
+  if (!myPosts) return;
 
   myPosts.innerHTML = "";
 
   try {
-    console.log("STEP 3: Querying posts for UID:", user.uid);
-
     const postsQuery = query(
       collection(db, "posts"),
       where("userId", "==", user.uid)
     );
 
     const snapshot = await getDocs(postsQuery);
-
-    console.log("STEP 4: Posts found:", snapshot.size);
 
     if (snapshot.empty) {
       myPosts.innerHTML = `
@@ -329,18 +323,26 @@ async function loadMyPosts(user) {
       return;
     }
 
-    snapshot.forEach((postDoc) => {
-      console.log("STEP 5: Rendering post:", postDoc.id);
-
-      renderPost(postDoc);
+    // Sort posts from newest to oldest.
+    const sortedPosts = snapshot.docs.sort((a, b) => {
+      const timeA = a.data().createdAt?.seconds || 0;
+      const timeB = b.data().createdAt?.seconds || 0;
+      return timeB - timeA;
     });
 
-    console.log("STEP 6: Finished loading my posts");
+    // Display the newest post first.
+    for (const postDoc of sortedPosts) {
+      await renderPost(postDoc);
+    }
+
+    console.log("Posts displayed newest first.");
 
   } catch (error) {
-    console.error("STEP ERROR: loadMyPosts failed:", error);
+    console.error("Error loading posts:", error);
+    showNotification("Unable to load posts. Please refresh.", true);
   }
 }
+
 
 /**
  * Render a single post
