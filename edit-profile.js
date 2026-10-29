@@ -1,70 +1,125 @@
+
 import { auth, db, storage } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// Load user data into form
+import {
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+    doc,
+    getDoc,
+    setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+// ===============================
+// LOAD PROFILE DETAILS
+// ===============================
+
+let currentUser = null;
+
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
+    if (!user) {
+        window.location.href = "login.html";
+        return;
+    }
 
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+    currentUser = user;
 
-  if (snap.exists()) {
-    const data = snap.data();
+    try {
+        const userRef = doc(db, "users", user.uid);
+        const snapshot = await getDoc(userRef);
 
-    document.getElementById("fullName").value = data.name || "";
-    document.getElementById("username").value = data.username || "";
-    document.getElementById("bio").value = data.bio || "";
-    document.getElementById("email").value = data.email || "";
-    document.getElementById("phone").value = data.phone || "";
-    document.getElementById("country").value = data.country || "";
-    document.getElementById("city").value = data.city || "";
-  }
+        const data = snapshot.exists() ? snapshot.data() : {};
+
+        document.getElementById("fullName").value = data.name || "";
+        document.getElementById("username").value = data.username || "";
+        document.getElementById("bio").value = data.bio || "";
+        document.getElementById("email").value = data.email || user.email || "";
+        document.getElementById("phone").value = data.phone || "";
+        document.getElementById("country").value = data.country || "";
+        document.getElementById("city").value = data.city || "";
+
+    } catch (error) {
+        console.error("Error loading profile:", error);
+        alert("Could not load your profile. Please check your internet connection and try again.");
+    }
 });
 
-// Save profile to Firestore
-document.getElementById("saveProfile").addEventListener("click", async () => {
-  const user = auth.currentUser;
+// ===============================
+// SAVE PROFILE DETAILS
+// ===============================
 
-  if (!user) return;
+const saveProfileBtn = document.getElementById("saveProfile");
+const topSaveBtn = document.getElementById("topSaveBtn");
 
-  await updateDoc(doc(db, "users", user.uid), {
-    name: document.getElementById("fullName").value,
-    username: document.getElementById("username").value,
-    bio: document.getElementById("bio").value,
-    email: document.getElementById("email").value,
-    phone: document.getElementById("phone").value,
-    country: document.getElementById("country").value,
-    city: document.getElementById("city").value
-  });
+async function saveProfile() {
+    const user = currentUser || auth.currentUser;
 
-  alert("Profile updated successfully!");
-  window.location.href = "profile.html";
-});
+    if (!user) {
+        alert("Please log in again before saving.");
+        return;
+    }
 
+    const name = document.getElementById("fullName").value.trim();
+    const username = document.getElementById("username").value.trim();
+    const bio = document.getElementById("bio").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const country = document.getElementById("country").value.trim();
+    const city = document.getElementById("city").value.trim();
+
+    try {
+        const userRef = doc(db, "users", user.uid);
+        const snapshot = await getDoc(userRef);
+
+        // Keep existing fields and update the edited details.
+        const existingData = snapshot.exists() ? snapshot.data() : {};
+
+        await setDoc(userRef, {
+            ...existingData,
+            name,
+            username,
+            bio,
+            email,
+            phone,
+            country,
+            city
+        });
+
+        alert("Profile saved successfully!");
+        window.location.href = "profile.html";
+
+    } catch (error) {
+        console.error("Error saving profile:", error);
+        alert("Profile could not be saved: " + error.message);
+    }
+}
+
+if (saveProfileBtn) {
+    saveProfileBtn.addEventListener("click", saveProfile);
+}
+
+if (topSaveBtn) {
+    topSaveBtn.addEventListener("click", saveProfile);
+}
+
+// ===============================
+// BACK BUTTON
+// ===============================
 
 const backBtn = document.getElementById("backBtn");
 
 if (backBtn) {
     backBtn.addEventListener("click", () => {
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            window.location.href = "profile.html";
-        }
+        window.location.href = "profile.html";
     });
 }
-const topSaveBtn = document.getElementById("topSaveBtn");
-const saveProfileBtn = document.getElementById("saveProfile");
 
-if (topSaveBtn && saveProfileBtn) {
-    topSaveBtn.addEventListener("click", () => {
-        saveProfileBtn.click();
-    });
-}
+// ===============================
+// PHOTO PREVIEW
+// Note: This previews the image only.
+// It does not upload or permanently save it.
+// ===============================
 
 const changePhotoBtn = document.getElementById("changePhotoBtn");
 const profilePhotoInput = document.getElementById("profilePhotoInput");
