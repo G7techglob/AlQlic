@@ -323,12 +323,25 @@ async function loadMyPosts(user) {
       return;
     }
 
-    // Sort posts from newest to oldest.
-    const sortedPosts = snapshot.docs.sort((a, b) => {
-      const timeA = a.data().createdAt?.seconds || 0;
-      const timeB = b.data().createdAt?.seconds || 0;
-      return timeB - timeA;
-    });
+  const sortedPosts = snapshot.docs.sort((a, b) => {
+  const getTime = (postDoc) => {
+    const timestamp = postDoc.data().createdAt;
+
+    if (!timestamp) return 0;
+
+    if (typeof timestamp.toMillis === "function") {
+      return timestamp.toMillis();
+    }
+
+    if (typeof timestamp.seconds === "number") {
+      return timestamp.seconds * 1000;
+    }
+
+    return 0;
+  };
+
+  return getTime(b) - getTime(a);
+});
 
     // Display the newest post first.
     for (const postDoc of sortedPosts) {
