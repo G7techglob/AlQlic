@@ -76,22 +76,37 @@ content="width=device-width, initial-scale=1.0">
   </p>
 </section>
 
-<!-- Profile Tabs -->
-<section class="profile-tabs">
 
-  <button id="userPostsTab">
+<!-- Profile Tabs -->
+<section class="profile-tabs" role="tablist" aria-label="User profile content">
+
+  <button
+    type="button"
+    id="userPostsTab"
+    role="tab"
+    aria-selected="true"
+    class="active">
     Posts
   </button>
 
-  <button id="userPhotosTab">
+  <button
+    type="button"
+    id="userPhotosTab"
+    role="tab"
+    aria-selected="false">
     Photos
   </button>
 
-  <button id="userReelsTab">
+  <button
+    type="button"
+    id="userReelsTab"
+    role="tab"
+    aria-selected="false">
     Reels
   </button>
 
 </section>
+
 
 <!-- User Posts -->
 <h3>User Posts</h3>
