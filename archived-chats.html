@@ -1,0 +1,40 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Archived Chats - AlQlic</title>
+
+    <link rel="stylesheet" href="archived-chats.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+    <header class="page-header">
+        <button onclick="location.href='chat-settings.html'" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+
+        <h2>Archived Chats</h2>
+    </header>
+
+    <main class="archive-container">
+
+        <div id="archivedChatsList">
+            <div class="empty-state">
+                <i class="fa-solid fa-box-archive"></i>
+                <h3>No archived chats yet</h3>
+                <p>Chats you archive will appear here.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="archived-chats.js"></script>
+
+</body>
+</html>
+```
