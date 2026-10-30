@@ -1,3 +1,4 @@
+
 import { auth, db } from "./firebase.js";
 
 import {
@@ -7,17 +8,28 @@ import {
     collection,
     getDocs,
     deleteDoc,
-    addDoc
+    addDoc,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 const params = new URLSearchParams(window.location.search);
 const receiverUid = params.get("uid");
+
 const pinChatText = document.getElementById("pinChatText");
+const archiveChatBtn = document.getElementById("archiveChat");
 
-async function updatePinButton() {
-
+function getChatId() {
     const user = auth.currentUser;
 
-    if (!user) return;
+    if (!user || !receiverUid) return null;
+
+    return [user.uid, receiverUid].sort().join("_");
+}
+
+async function updatePinButton() {
+    const user = auth.currentUser;
+
+    if (!user || !receiverUid) return;
 
     const settingsSnap = await getDoc(
         doc(db, "chatSettings", user.uid + "_" + receiverUid)
@@ -31,7 +43,6 @@ async function updatePinButton() {
     } else {
         pinChatText.textContent = "Pin Chat";
     }
-
 }
 
 document.getElementById("backBtn").onclick = () => {
@@ -43,7 +54,6 @@ document.getElementById("viewProfile").onclick = () => {
 };
 
 document.getElementById("muteChat").onclick = async () => {
-
     const user = auth.currentUser;
 
     if (!user) return;
@@ -60,7 +70,6 @@ document.getElementById("muteChat").onclick = async () => {
 };
 
 document.getElementById("pinChat").onclick = async () => {
-
     const user = auth.currentUser;
 
     if (!user) return;
@@ -89,7 +98,6 @@ document.getElementById("pinChat").onclick = async () => {
         { merge: true }
     );
 
-    // Change the button immediately
     pinChatText.textContent = newPinnedState
         ? "Unpin Chat"
         : "Pin Chat";
@@ -101,9 +109,56 @@ document.getElementById("pinChat").onclick = async () => {
     );
 };
 
+// ARCHIVE CHAT
+if (archiveChatBtn) {
+    archiveChatBtn.onclick = async () => {
+        const user = auth.currentUser;
 
+        if (!user || !receiverUid) {
+            alert("Please sign in before archiving a chat.");
+            return;
+        }
+
+        const confirmArchive = confirm(
+            "Move this conversation to Archived Chats?"
+        );
+
+        if (!confirmArchive) return;
+
+        try {
+            const chatId = getChatId();
+
+            if (!chatId) return;
+
+            const archiveRef = doc(
+                db,
+                "archivedChats",
+                user.uid + "_" + chatId
+            );
+
+            await setDoc(archiveRef, {
+                userId: user.uid,
+                chatId: chatId,
+                otherUserId: receiverUid,
+                isGroup: false,
+                archivedAt: serverTimestamp()
+            });
+
+            alert("Chat archived successfully.");
+
+            window.location.href = "chats.html";
+
+        } catch (error) {
+            console.error("Archive error:", error);
+            alert("Unable to archive this chat. Please try again.");
+        }
+    };
+}
 
 document.getElementById("clearChat").onclick = async () => {
+    const user = auth.currentUser;
+
+    if (!user) return;
 
     const confirmClear = confirm(
         "Are you sure you want to clear this chat?"
@@ -111,7 +166,7 @@ document.getElementById("clearChat").onclick = async () => {
 
     if (!confirmClear) return;
 
-    const chatId = [auth.currentUser.uid, receiverUid].sort().join("_");
+    const chatId = getChatId();
 
     const messagesRef = collection(db, "chats", chatId, "messages");
 
@@ -127,6 +182,9 @@ document.getElementById("clearChat").onclick = async () => {
 };
 
 document.getElementById("deleteChat").onclick = async () => {
+    const user = auth.currentUser;
+
+    if (!user) return;
 
     const confirmDelete = confirm(
         "Delete this conversation? This cannot be undone."
@@ -134,9 +192,8 @@ document.getElementById("deleteChat").onclick = async () => {
 
     if (!confirmDelete) return;
 
-    const chatId = [auth.currentUser.uid, receiverUid].sort().join("_");
+    const chatId = getChatId();
 
-    // Delete all messages
     const messagesRef = collection(db, "chats", chatId, "messages");
     const snapshot = await getDocs(messagesRef);
 
@@ -144,9 +201,8 @@ document.getElementById("deleteChat").onclick = async () => {
         await deleteDoc(message.ref);
     }
 
-    // Delete chat settings for this conversation
     await deleteDoc(
-        doc(db, "chatSettings", auth.currentUser.uid + "_" + receiverUid)
+        doc(db, "chatSettings", user.uid + "_" + receiverUid)
     );
 
     alert("Conversation deleted.");
@@ -155,7 +211,6 @@ document.getElementById("deleteChat").onclick = async () => {
 };
 
 document.getElementById("blockUser").onclick = async () => {
-
     const confirmBlock = confirm(
         "Block this user? You won't be able to send messages to each other."
     );
@@ -181,7 +236,6 @@ document.getElementById("blockUser").onclick = async () => {
 };
 
 document.getElementById("reportUser").onclick = async () => {
-
     const confirmReport = confirm(
         "Report this user for inappropriate behavior?"
     );
@@ -201,3 +255,5 @@ document.getElementById("reportUser").onclick = async () => {
 
     alert("Thank you. Your report has been submitted.");
 };
+
+updatePinButton();
