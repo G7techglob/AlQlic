@@ -1,4 +1,6 @@
+
 import { db } from "./firebase.js";
+
 import {
     collection,
     query,
@@ -6,7 +8,87 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+
+/* =====================================
+   VIDEO ELEMENTS
+===================================== */
+
 const videoFeed = document.getElementById("videoFeed");
+
+const videoSearchBtn = document.getElementById("videoSearchBtn");
+const closeVideoSearch = document.getElementById("closeVideoSearch");
+const videoSearchBox = document.getElementById("videoSearchBox");
+const videoSearchInput = document.getElementById("videoSearchInput");
+const videoTitle = document.getElementById("videoTitle");
+
+
+/* =====================================
+   VIDEO SEARCH
+===================================== */
+
+function filterVideos() {
+
+    const searchText = videoSearchInput.value
+        .toLowerCase()
+        .trim();
+
+    const videoCards = videoFeed.querySelectorAll(".video-post");
+
+    videoCards.forEach(card => {
+
+        const videoText = card.textContent.toLowerCase();
+
+        card.style.display = videoText.includes(searchText)
+            ? ""
+            : "none";
+
+    });
+
+}
+
+
+// Open search
+
+videoSearchBtn.addEventListener("click", () => {
+
+    videoSearchBox.classList.add("active");
+
+    videoSearchBtn.style.display = "none";
+    closeVideoSearch.style.display = "block";
+
+    videoTitle.style.display = "none";
+
+    videoSearchInput.focus();
+
+});
+
+
+// Search while typing
+
+videoSearchInput.addEventListener("input", filterVideos);
+
+
+// Close search
+
+closeVideoSearch.addEventListener("click", () => {
+
+    videoSearchInput.value = "";
+
+    videoSearchBox.classList.remove("active");
+
+    videoSearchBtn.style.display = "block";
+    closeVideoSearch.style.display = "none";
+
+    videoTitle.style.display = "";
+
+    filterVideos();
+
+});
+
+
+/* =====================================
+   LOAD VIDEOS FROM FIREBASE
+===================================== */
 
 const q = query(
     collection(db, "posts"),
@@ -35,7 +117,6 @@ onSnapshot(q, (snapshot) => {
 
         div.innerHTML = `
             <video controls src="${video.url}"></video>
-
             <p>${post.content || ""}</p>
         `;
 
@@ -43,67 +124,7 @@ onSnapshot(q, (snapshot) => {
 
     });
 
-});
-
-
-/* =====================================
-   VIDEO SEARCH FUNCTIONALITY
-===================================== */
-
-const videoSearchBtn = document.getElementById("videoSearchBtn");
-const closeVideoSearch = document.getElementById("closeVideoSearch");
-const videoSearchBox = document.getElementById("videoSearchBox");
-const videoSearchInput = document.getElementById("videoSearchInput");
-const videoTitle = document.getElementById("videoTitle");
-const videoFeed = document.getElementById("videoFeed");
-
-// Open search
-videoSearchBtn.addEventListener("click", () => {
-
-    videoSearchBox.classList.add("active");
-
-    videoSearchBtn.style.display = "none";
-    closeVideoSearch.style.display = "block";
-
-    videoTitle.style.display = "none";
-
-    videoSearchInput.focus();
-
-});
-
-// Search videos
-videoSearchInput.addEventListener("input", () => {
-
-    const searchText = videoSearchInput.value.toLowerCase().trim();
-
-    const videoCards = videoFeed.children;
-
-    Array.from(videoCards).forEach(card => {
-
-        const videoText = card.textContent.toLowerCase();
-
-        card.style.display = videoText.includes(searchText)
-            ? ""
-            : "none";
-
-    });
-
-});
-
-// Close search
-closeVideoSearch.addEventListener("click", () => {
-
-    videoSearchInput.value = "";
-
-    videoSearchBox.classList.remove("active");
-
-    videoSearchBtn.style.display = "block";
-    closeVideoSearch.style.display = "none";
-
-    videoTitle.style.display = "";
-
-    Array.from(videoFeed.children).forEach(card => {
-        card.style.display = "";
-    });
+    // Keep search working after Firebase refreshes videos
+    filterVideos();
 
 });
