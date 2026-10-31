@@ -369,3 +369,14 @@ if (emailVerification) {
     });
 
 }
+// -----------------------------
+// SETTINGS SEARCH BUTTON
+// -----------------------------
+
+const settingsSearchBtn = document.getElementById("settingsSearchBtn");
+
+if (settingsSearchBtn) {
+    settingsSearchBtn.addEventListener("click", () => {
+        window.location.href = "settings-search.html";
+    });
+}
