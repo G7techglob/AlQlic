@@ -44,3 +44,66 @@ onSnapshot(q, (snapshot) => {
     });
 
 });
+
+
+/* =====================================
+   VIDEO SEARCH FUNCTIONALITY
+===================================== */
+
+const videoSearchBtn = document.getElementById("videoSearchBtn");
+const closeVideoSearch = document.getElementById("closeVideoSearch");
+const videoSearchBox = document.getElementById("videoSearchBox");
+const videoSearchInput = document.getElementById("videoSearchInput");
+const videoTitle = document.getElementById("videoTitle");
+const videoFeed = document.getElementById("videoFeed");
+
+// Open search
+videoSearchBtn.addEventListener("click", () => {
+
+    videoSearchBox.classList.add("active");
+
+    videoSearchBtn.style.display = "none";
+    closeVideoSearch.style.display = "block";
+
+    videoTitle.style.display = "none";
+
+    videoSearchInput.focus();
+
+});
+
+// Search videos
+videoSearchInput.addEventListener("input", () => {
+
+    const searchText = videoSearchInput.value.toLowerCase().trim();
+
+    const videoCards = videoFeed.children;
+
+    Array.from(videoCards).forEach(card => {
+
+        const videoText = card.textContent.toLowerCase();
+
+        card.style.display = videoText.includes(searchText)
+            ? ""
+            : "none";
+
+    });
+
+});
+
+// Close search
+closeVideoSearch.addEventListener("click", () => {
+
+    videoSearchInput.value = "";
+
+    videoSearchBox.classList.remove("active");
+
+    videoSearchBtn.style.display = "block";
+    closeVideoSearch.style.display = "none";
+
+    videoTitle.style.display = "";
+
+    Array.from(videoFeed.children).forEach(card => {
+        card.style.display = "";
+    });
+
+});
