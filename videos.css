@@ -58,3 +58,53 @@
 .live-btn:active{
     text-decoration:none !important;
 }
+
+/* =====================================
+   VIDEO SEARCH EXPANDING BAR
+===================================== */
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.video-search-box {
+    width: 0;
+    overflow: hidden;
+    transition: width 0.3s ease;
+}
+
+.video-search-box.active {
+    width: 200px;
+}
+
+.video-search-box input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    outline: none;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.video-search-box input:focus {
+    border-color: #1877f2;
+}
+
+.header-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 8px;
+    color: inherit;
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .video-search-box.active {
+        width: 145px;
+    }
+}
