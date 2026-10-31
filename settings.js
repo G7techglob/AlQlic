@@ -78,10 +78,9 @@ onAuthStateChanged(auth, async (user)=>{
 
 backBtn.addEventListener("click",()=>{
 
-    history.back();
+    window.location.href = "index.html";
 
 });
-
 
 /* -----------------------------
    LOGOUT
@@ -324,7 +323,7 @@ if (aboutApp) {
     });
 }
 
-// Open MatchConnect Version page
+// Open alqclic Version page
 
 const appVersion = document.getElementById("appVersion");
 
