@@ -86,15 +86,15 @@
     width: 0;
     opacity: 0;
     overflow: hidden;
-    flex-shrink: 1;
+    flex: 0 0 0;
     transition: width 0.3s ease, opacity 0.3s ease;
 }
 
 .video-search-box.active {
     width: 200px;
+    flex-basis: 200px;
     opacity: 1;
 }
-
 .video-search-box input {
     display: block;
     width: 100%;
@@ -130,9 +130,10 @@
         gap: 6px;
     }
 
-    .video-search-box.active {
-        width: 140px;
-    }
+  .video-search-box.active {
+    width: 140px;
+    flex-basis: 140px;
+}
 
     .live-text {
         font-size: 12px;
