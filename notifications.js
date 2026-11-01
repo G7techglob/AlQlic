@@ -217,3 +217,76 @@ const container = document.getElementById("notificationsContainer");
 const cleanupNotifications = loadNotifications(container);
 
 window.addEventListener("beforeunload", cleanupNotifications);
+
+// -----------------------------
+// NOTIFICATION HEADER SEARCH
+// -----------------------------
+
+const notificationSearchBtn =
+  document.getElementById("notificationSearchBtn");
+
+const notificationSearchBox =
+  document.getElementById("notificationSearchBox");
+
+const notificationSearchInput =
+  document.getElementById("notificationSearchInput");
+
+const closeNotificationSearch =
+  document.getElementById("closeNotificationSearch");
+
+// OPEN SEARCH
+if (notificationSearchBtn) {
+  notificationSearchBtn.addEventListener("click", () => {
+
+    notificationSearchBox.classList.add("active");
+
+    notificationSearchBtn.style.display = "none";
+
+    closeNotificationSearch.style.display = "block";
+
+    notificationSearchInput.focus();
+
+  });
+}
+
+// SEARCH NOTIFICATIONS
+if (notificationSearchInput) {
+  notificationSearchInput.addEventListener("input", () => {
+
+    const searchText =
+      notificationSearchInput.value.toLowerCase().trim();
+
+    const cards =
+      document.querySelectorAll(".notification-card");
+
+    cards.forEach(card => {
+
+      const notificationText =
+        card.textContent.toLowerCase();
+
+      card.style.display =
+        notificationText.includes(searchText) ? "flex" : "none";
+
+    });
+
+  });
+}
+
+// CLOSE SEARCH
+if (closeNotificationSearch) {
+  closeNotificationSearch.addEventListener("click", () => {
+
+    notificationSearchInput.value = "";
+
+    document.querySelectorAll(".notification-card").forEach(card => {
+      card.style.display = "";
+    });
+
+    notificationSearchBox.classList.remove("active");
+
+    closeNotificationSearch.style.display = "none";
+
+    notificationSearchBtn.style.display = "block";
+
+  });
+}
