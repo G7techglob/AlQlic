@@ -372,11 +372,56 @@ if (emailVerification) {
 // -----------------------------
 // SETTINGS SEARCH BUTTON
 // -----------------------------
+// -----------------------------
+// SETTINGS HEADER SEARCH
+// -----------------------------
 
 const settingsSearchBtn = document.getElementById("settingsSearchBtn");
+const settingsSearchBox = document.getElementById("settingsSearchBox");
+const settingsSearchInput = document.getElementById("settingsSearchInput");
+const closeSettingsSearch = document.getElementById("closeSettingsSearch");
 
-if (settingsSearchBtn) {
-    settingsSearchBtn.addEventListener("click", () => {
-        window.location.href = "settings-search.html";
+const settingsGroups = document.querySelectorAll(".settings-group");
+
+// OPEN SEARCH
+settingsSearchBtn.addEventListener("click", () => {
+    settingsSearchBox.classList.add("active");
+    settingsSearchBtn.style.display = "none";
+    closeSettingsSearch.style.display = "flex";
+    settingsSearchInput.focus();
+});
+
+// FILTER SETTINGS
+settingsSearchInput.addEventListener("input", () => {
+    const searchText = settingsSearchInput.value.toLowerCase().trim();
+
+    settingsGroups.forEach(group => {
+        let hasMatch = false;
+
+        group.querySelectorAll(".setting-item").forEach(item => {
+            const matches = item.textContent.toLowerCase().includes(searchText);
+
+            item.style.display = matches ? "flex" : "none";
+
+            if (matches) hasMatch = true;
+        });
+
+        group.style.display = hasMatch ? "block" : "none";
     });
-}
+});
+
+// CLOSE SEARCH
+closeSettingsSearch.addEventListener("click", () => {
+    settingsSearchInput.value = "";
+
+    settingsGroups.forEach(group => {
+        group.style.display = "";
+        group.querySelectorAll(".setting-item").forEach(item => {
+            item.style.display = "";
+        });
+    });
+
+    settingsSearchBox.classList.remove("active");
+    closeSettingsSearch.style.display = "none";
+    settingsSearchBtn.style.display = "flex";
+});
