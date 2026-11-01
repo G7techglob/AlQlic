@@ -21,7 +21,8 @@ body{
 .settings-header{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-start;
+    gap:10px;
     padding:15px 18px;
     background:#ffffff;
     position:sticky;
@@ -30,6 +31,15 @@ body{
     box-shadow:0 1px 5px rgba(0,0,0,.08);
 }
 
+.settings-header h2{
+    font-size:22px;
+    font-weight:600;
+    flex:1;
+}
+
+.settings-search-box{
+    margin-left:auto;
+}
 .settings-header h2{
     font-size:22px;
     font-weight:600;
