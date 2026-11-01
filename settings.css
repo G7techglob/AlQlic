@@ -256,3 +256,42 @@ body.dark-mode .logout-btn{
     color:white;
 
 }
+
+/* SETTINGS HEADER SEARCH */
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-search-box {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    flex: 0 0 0;
+    transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.settings-search-box.active {
+    width: 180px;
+    flex: 0 0 180px;
+    opacity: 1;
+}
+
+.settings-search-box input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    outline: none;
+    font-size: 14px;
+}
+
+@media (max-width: 480px) {
+    .settings-search-box.active {
+        width: 130px;
+        flex-basis: 130px;
+    }
+}
