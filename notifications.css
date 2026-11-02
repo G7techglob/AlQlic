@@ -197,3 +197,41 @@ body {
 .notification-settings-btn:hover {
     background: #d5e3ff;
 }
+
+/* MOBILE NOTIFICATIONS HEADER */
+
+@media (max-width: 600px) {
+
+    .notifications-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .notification-back-btn,
+    .notification-settings-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 19px;
+    }
+
+    .notifications-header h2 {
+        font-size: 18px;
+    }
+
+    .notification-search-box {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .notification-search-box input {
+        width: 100%;
+    }
+
+    .mark-read-btn {
+        width: 100%;
+        margin-top: 4px;
+    }
+
+}
