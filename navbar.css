@@ -1,4 +1,4 @@
-
+ 
 /* ===== RESPONSIVE BOTTOM NAVIGATION ===== */
 
 #bottomNavbar,
@@ -160,16 +160,16 @@ body {
 /* Computers and large screens */
 @media (min-width: 1024px) {
     #bottomNavbar {
-        left: 50%;
-        right: auto;
-        width: min(900px, calc(100% - 40px));
-        transform: translateX(-50%);
-        border: 1px solid #ececec;
-        border-bottom: none;
-        border-top-left-radius: 14px;
-        border-top-right-radius: 14px;
-        padding-left: 24px;
-        padding-right: 24px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        transform: none;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        padding-left: 40px;
+        padding-right: 40px;
     }
 
     .nav-center {
