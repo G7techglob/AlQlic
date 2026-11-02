@@ -175,3 +175,25 @@ body {
         flex: 0 0 130px;
     }
 }
+/* NOTIFICATION HEADER BUTTONS */
+
+.notification-back-btn,
+.notification-settings-btn {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: #e8efff;
+    color: #0066ff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-back-btn:hover,
+.notification-settings-btn:hover {
+    background: #d5e3ff;
+}
