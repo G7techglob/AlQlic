@@ -144,17 +144,10 @@ body {
 }
 
 .notification-search-box {
-    width: 0;
-    opacity: 0;
-    overflow: hidden;
-    flex: 0 0 0;
-    transition: width 0.3s ease, opacity 0.3s ease;
-}
-
-.notification-search-box.active {
-    width: 180px;
-    flex: 0 0 180px;
+    width: 250px;
+    flex: 0 0 250px;
     opacity: 1;
+    overflow: visible;
 }
 
 .notification-search-box input {
@@ -177,8 +170,8 @@ body {
 }
 
 @media (max-width: 480px) {
-    .notification-search-box.active {
-        width: 110px;
-        flex-basis: 110px;
+    .notification-search-box {
+        width: 130px;
+        flex: 0 0 130px;
     }
 }
