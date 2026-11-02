@@ -234,4 +234,14 @@ body {
         margin-top: 4px;
     }
 
+} 
+
+/* STICKY NOTIFICATIONS HEADER */
+
+.notifications-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: #f5f7fb;
+    padding: 12px 0;
 }
