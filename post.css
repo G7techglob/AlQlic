@@ -343,3 +343,33 @@ body {
     font-size: 15px;
   }
     }
+/* FIX LONG TEXT POSTS OVERLAPPING COMMENTS */
+
+#postContainer {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+.post-content {
+    display: block;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.post-actions {
+    position: static;
+    clear: both;
+}
+
+.comments-title,
+#commentsList {
+    position: static;
+    clear: both;
+}
