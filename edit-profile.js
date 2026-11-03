@@ -158,3 +158,27 @@ if (profilePhotoInput && profilePhotoPreview) {
         reader.readAsDataURL(file);
     });
 }
+
+// COPY MY ALQLIC PROFILE LINK
+const copyProfileLinkBtn = document.getElementById("copyProfileLinkBtn");
+
+if (copyProfileLinkBtn) {
+  copyProfileLinkBtn.addEventListener("click", async () => {
+    const user = currentUser || auth.currentUser;
+
+    if (!user) {
+      alert("Please log in again.");
+      return;
+    }
+
+    const profileUrl = new URL("profile.html", window.location.href);
+    profileUrl.searchParams.set("uid", user.uid);
+
+    try {
+      await navigator.clipboard.writeText(profileUrl.href);
+      alert("Your AlQlic profile link has been copied!");
+    } catch (error) {
+      alert("Copy this AlQlic profile link:\n" + profileUrl.href);
+    }
+  });
+}
