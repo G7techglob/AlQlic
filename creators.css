@@ -1,0 +1,147 @@
+
+/* =================================
+   ALQLIC CREATOR MONETIZATION
+================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6fb;
+    color: #222;
+}
+
+/* HEADER */
+
+.creator-header {
+    background: #1877f2;
+    color: white;
+    padding: 18px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.creator-header h2 {
+    font-size: 21px;
+}
+
+.creator-header a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+/* MAIN CONTAINER */
+
+.creator-container {
+    max-width: 850px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+/* INTRODUCTION */
+
+.creator-intro {
+    background: white;
+    padding: 35px 25px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.creator-intro h1 {
+    color: #1877f2;
+    margin-bottom: 15px;
+}
+
+.creator-intro p {
+    color: #666;
+    line-height: 1.7;
+}
+
+/* BENEFITS */
+
+.creator-benefits {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.creator-benefits h2 {
+    margin-bottom: 20px;
+}
+
+.benefit {
+    background: #f4f7fc;
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.benefit h3 {
+    color: #1877f2;
+    margin-bottom: 8px;
+}
+
+.benefit p {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* APPLICATION */
+
+.creator-application {
+    background: white;
+    padding: 30px 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.creator-application h2 {
+    margin-bottom: 12px;
+}
+
+.creator-application p {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.creator-application button {
+    background: #1877f2;
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.creator-application button:hover {
+    background: #0d5bd7;
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+
+    .creator-header {
+        padding: 16px;
+    }
+
+    .creator-container {
+        margin: 15px auto;
+        padding: 12px;
+    }
+
+    .creator-intro h1 {
+        font-size: 24px;
+    }
+
+}
