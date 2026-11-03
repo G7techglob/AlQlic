@@ -91,6 +91,18 @@ onAuthStateChanged(auth, async (user) => {
     displayedProfileUid = requestedUid || user.uid;
     viewingOwnProfile = displayedProfileUid === user.uid;
 
+    // Hide editing and post creation when viewing another profile
+const editProfileBtn = document.querySelector(".edit-profile-btn");
+const createPostContainer = document.getElementById("create-post-container");
+
+if (editProfileBtn) {
+  editProfileBtn.style.display = viewingOwnProfile ? "" : "none";
+}
+
+if (createPostContainer && !viewingOwnProfile) {
+  createPostContainer.style.display = "none";
+}
+
     const userRef = doc(db, "users", displayedProfileUid);
     const userSnap = await getDoc(userRef);
 
@@ -101,9 +113,9 @@ onAuthStateChanged(auth, async (user) => {
 
     const data = userSnap.data();
 
-    const followersSnap = await getDocs(collection(db, "users", user.uid, "followers"));
-    const followingSnap = await getDocs(collection(db, "users", user.uid, "following"));
-
+  const followersSnap = await getDocs(collection(db, "users", displayedProfileUid, "followers"));
+const followingSnap = await getDocs(collection(db, "users", displayedProfileUid, "following"));
+    
     const followersCount = document.getElementById("followersCount");
     const followingCount = document.getElementById("followingCount");
 
@@ -113,9 +125,9 @@ onAuthStateChanged(auth, async (user) => {
     const followersLink = document.getElementById("followersLink");
     const followingLink = document.getElementById("followingLink");
 
-    if (followersLink) followersLink.href = `followers.html?uid=${user.uid}`;
-    if (followingLink) followingLink.href = `following.html?uid=${user.uid}`;
-
+  if (followersLink) followersLink.href = `followers.html?uid=${displayedProfileUid}`;
+if (followingLink) followingLink.href = `following.html?uid=${displayedProfileUid}`;
+    
     // Use textContent instead of innerHTML to prevent XSS
     const profileName = document.getElementById("profileName");
     const profileEmail = document.getElementById("profileEmail");
@@ -149,10 +161,9 @@ if (profileCity) {
     if (photoURLInput) photoURLInput.value = data.photoURL || "";
 
 console.log("Loading post count...");
-await loadPostCount(user);
-
+await loadPostCount({ uid: displayedProfileUid });
 console.log("Loading my posts...");
-await loadMyPosts(user);
+await loadMyPosts({ uid: displayedProfileUid });
 
 
 console.log("Finished loading posts.");
@@ -379,9 +390,8 @@ async function renderPost(postDoc) {
 
   const post = postDoc.data();
 
-  // Only display the logged-in user's posts
-  if (post.userId !== auth.currentUser?.uid) return;
-
+ // Only display posts belonging to the profile being viewed
+if (post.userId !== displayedProfileUid) return;
   const div = document.createElement("div");
 
   div.className = "post-container";
@@ -583,7 +593,7 @@ function handleSharePost(postId) {
     return;
   }
 
-  // Open the MatchConnect Share Post page
+  // Open the alqlic Share Post page
   window.location.href =
     `share-post.html?id=${encodeURIComponent(postId)}`;
 
