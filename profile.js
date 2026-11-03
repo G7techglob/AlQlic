@@ -72,7 +72,11 @@ function safeImageUrl(url, fallback = "images/default-avatar.png") {
   }
 }
 
-// ==================== INITIALIZE PROFILE ====================
+
+  // ==================== INITIALIZE PROFILE ====================
+
+let displayedProfileUid = null;
+let viewingOwnProfile = true;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -81,13 +85,20 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    const userRef = doc(db, "users", user.uid);
+    const params = new URLSearchParams(window.location.search);
+    const requestedUid = params.get("uid");
+
+    displayedProfileUid = requestedUid || user.uid;
+    viewingOwnProfile = displayedProfileUid === user.uid;
+
+    const userRef = doc(db, "users", displayedProfileUid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
       showNotification("User profile not found", true);
       return;
     }
+
     const data = userSnap.data();
 
     const followersSnap = await getDocs(collection(db, "users", user.uid, "followers"));
