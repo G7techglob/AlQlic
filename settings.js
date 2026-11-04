@@ -425,3 +425,17 @@ closeSettingsSearch.addEventListener("click", () => {
     closeSettingsSearch.style.display = "none";
     settingsSearchBtn.style.display = "flex";
 });
+
+// ===============================
+// CREATOR MONETIZATION
+// ===============================
+
+const creatorMonetization = document.getElementById(
+    "creatorMonetization"
+);
+
+if (creatorMonetization) {
+    creatorMonetization.addEventListener("click", () => {
+        window.location.href = "creators.html";
+    });
+}
