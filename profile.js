@@ -143,19 +143,20 @@ if (followingLink) followingLink.href = `following.html?uid=${displayedProfileUi
     const profilePhone = document.getElementById("profilePhone");
 const profileCountry = document.getElementById("profileCountry");
 const profileCity = document.getElementById("profileCity");
-
 if (profilePhone) {
-    profilePhone.textContent = data.phone ? "Phone: " + data.phone : "";
+    profilePhone.textContent = viewingOwnProfile && data.phone
+        ? "Phone: " + data.phone : "";
 }
 
 if (profileCountry) {
-    profileCountry.textContent = data.country ? "Country: " + data.country : "";
+    profileCountry.textContent = viewingOwnProfile && data.country
+        ? "Country: " + data.country : "";
 }
 
 if (profileCity) {
-    profileCity.textContent = data.city ? "City: " + data.city : "";
-}
-    if (profilePhoto) profilePhoto.src = safeImageUrl(data.photoURL);
+    profileCity.textContent = viewingOwnProfile && data.city
+        ? "City: " + data.city : "";
+}    if (profilePhoto) profilePhoto.src = safeImageUrl(data.photoURL);
     if (editName) editName.value = data.name || "";
     if (editBio) editBio.value = data.bio || "";
     if (photoURLInput) photoURLInput.value = data.photoURL || "";
