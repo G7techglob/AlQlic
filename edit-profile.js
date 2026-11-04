@@ -171,8 +171,8 @@ if (copyProfileLinkBtn) {
       return;
     }
 
-    const profileUrl = new URL("profile.html", window.location.href);
-    profileUrl.searchParams.set("uid", user.uid);
+    const profileUrl = new URL("user.html", window.location.href);
+profileUrl.searchParams.set("uid", user.uid);
 
     try {
       await navigator.clipboard.writeText(profileUrl.href);
