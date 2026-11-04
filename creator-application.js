@@ -1,6 +1,10 @@
 import { auth, db } from "./firebase.js";
 
 import {
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
     doc,
     getDoc,
     setDoc,
@@ -39,8 +43,7 @@ const submitBtn = document.getElementById(
 // CHECK LOGIN AND LOAD PROFILE
 // ===============================
 
-auth.onAuthStateChanged?.(async (user) => {
-
+onAuthStateChanged(auth, async (user) => {
     if (!user) {
         alert(
             "Please log in before applying for monetization."
