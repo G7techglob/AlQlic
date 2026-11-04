@@ -1,0 +1,150 @@
+/* ===============================
+   CREATOR APPLICATION PAGE
+================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+}
+
+/* Header */
+
+.creator-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 25px;
+    background: #ffffff;
+    border-bottom: 1px solid #dddddd;
+}
+
+.creator-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.creator-header a {
+    text-decoration: none;
+    color: inherit;
+    font-weight: 600;
+}
+
+/* Main container */
+
+.creator-container {
+    width: 100%;
+    max-width: 700px;
+    margin: 30px auto;
+    padding: 0 15px;
+}
+
+/* Application card */
+
+.creator-application {
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.creator-application h1 {
+    margin-top: 0;
+    text-align: center;
+    font-size: 26px;
+}
+
+.creator-application > p {
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+/* Form */
+
+#creatorApplicationForm {
+    display: flex;
+    flex-direction: column;
+}
+
+#creatorApplicationForm label {
+    margin-top: 16px;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+
+#creatorApplicationForm input,
+#creatorApplicationForm select,
+#creatorApplicationForm textarea {
+    width: 100%;
+    padding: 13px;
+    font-size: 16px;
+    font-family: inherit;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+#creatorApplicationForm textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+#creatorApplicationForm input:focus,
+#creatorApplicationForm select:focus,
+#creatorApplicationForm textarea:focus {
+    outline: none;
+    border-color: #555555;
+}
+
+/* Submit button */
+
+#submitApplicationBtn {
+    width: 100%;
+    margin-top: 25px;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    background: #222222;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#submitApplicationBtn:hover {
+    opacity: 0.9;
+}
+
+#submitApplicationBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+    .creator-header {
+        padding: 15px;
+    }
+
+    .creator-container {
+        margin: 20px auto;
+        padding: 0 10px;
+    }
+
+    .creator-application {
+        padding: 20px;
+    }
+
+    .creator-application h1 {
+        font-size: 22px;
+    }
+
+}
