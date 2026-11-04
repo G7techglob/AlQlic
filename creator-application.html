@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monetization Application - AlQlic</title>
+
+    <link rel="stylesheet" href="creators.css">
+</head>
+
+<body>
+
+    <header class="creator-header">
+        <h2>AlQlic Creators</h2>
+
+        <a href="creators.html">
+            Back
+        </a>
+    </header>
+
+    <main class="creator-container">
+
+        <section class="creator-application">
+
+            <h1>Apply for Monetization</h1>
+
+            <p>
+                Complete the form below to apply for
+                AlQlic Creator Monetization.
+            </p>
+
+            <form id="creatorApplicationForm">
+
+                <!-- Full Name -->
+                <label for="creatorName">
+                    Full Name
+                </label>
+
+                <input
+                    type="text"
+                    id="creatorName"
+                    required
+                >
+
+
+                <!-- Username -->
+                <label for="creatorUsername">
+                    AlQlic Username
+                </label>
+
+                <input
+                    type="text"
+                    id="creatorUsername"
+                    required
+                >
+
+
+                <!-- Content Type -->
+                <label for="contentType">
+                    What type of content do you create?
+                </label>
+
+                <select
+                    id="contentType"
+                    required
+                >
+                    <option value="">
+                        Select content type
+                    </option>
+
+                    <option value="entertainment">
+                        Entertainment
+                    </option>
+
+                    <option value="music">
+                        Music
+                    </option>
+
+                    <option value="education">
+                        Education
+                    </option>
+
+                    <option value="gaming">
+                        Gaming
+                    </option>
+
+                    <option value="comedy">
+                        Comedy
+                    </option>
+
+                    <option value="other">
+                        Other
+                    </option>
+                </select>
+
+
+                <!-- Content Description -->
+                <label for="creatorDescription">
+                    Tell us about your content
+                </label>
+
+                <textarea
+                    id="creatorDescription"
+                    rows="5"
+                    required
+                ></textarea>
+
+
+                <!-- Social Link -->
+                <label for="socialLink">
+                    Social Media or Website Link
+                    (Optional)
+                </label>
+
+                <input
+                    type="url"
+                    id="socialLink"
+                    placeholder="https://"
+                >
+
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="submitApplicationBtn"
+                >
+                    Submit Application
+                </button>
+
+            </form>
+
+        </section>
+
+    </main>
+
+    <script
+        type="module"
+        src="creator-application.js"
+    ></script>
+
+</body>
+</html>
