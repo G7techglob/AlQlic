@@ -172,7 +172,7 @@ console.log("Finished loading posts.");
     const viewMedia = document.getElementById("viewMedia");
     if (viewMedia) {
       viewMedia.onclick = () => {
-        location.href = `media.html?uid=${user.uid}`;
+        location.href = `media.html?uid=${displayedProfileUid}`;
       };
     }
 
