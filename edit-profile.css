@@ -116,3 +116,21 @@ form textarea{
 .save-profile:hover{
     background:#218838;
                               }
+
+/* Copy Profile Link Button */
+#copyProfileLinkBtn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    background: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#copyProfileLinkBtn:hover {
+    background: #0056b3;
+}
