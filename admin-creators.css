@@ -1,0 +1,160 @@
+/* ===============================
+   ADMIN CREATOR APPLICATIONS
+================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+}
+
+/* ===============================
+   HEADER
+================================ */
+
+.admin-header {
+    background: #ffffff;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.admin-header h1 {
+    margin: 0 0 5px;
+    font-size: 24px;
+}
+
+.admin-header p {
+    margin: 0;
+    color: #666;
+}
+
+.back-link {
+    text-decoration: none;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    color: #222;
+}
+
+/* ===============================
+   MAIN CONTAINER
+================================ */
+
+.admin-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 15px;
+}
+
+.loading-message {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+}
+
+/* ===============================
+   APPLICATION CARD
+================================ */
+
+.application-card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid #e0e0e0;
+}
+
+.application-card h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.application-card p {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.application-card strong {
+    margin-right: 5px;
+}
+
+/* ===============================
+   STATUS
+================================ */
+
+.application-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    background: #eee;
+}
+
+/* ===============================
+   ACTION BUTTONS
+================================ */
+
+.application-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.application-actions button {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.approve-btn {
+    background: #198754;
+    color: white;
+}
+
+.reject-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.application-actions button:hover {
+    opacity: 0.9;
+}
+
+.application-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===============================
+   MOBILE
+================================ */
+
+@media (max-width: 600px) {
+
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .application-actions {
+        flex-direction: column;
+    }
+
+    .application-actions button {
+        width: 100%;
+    }
+}
