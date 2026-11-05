@@ -1,63 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Creator Applications - AlQlic Admin</title>
 
-    <link
-        rel="stylesheet"
-        href="admin-creators.css"
-    >
+    <link rel="stylesheet" href="admin-creators.css">
 </head>
 
 <body>
 
-    <header class="admin-header">
-
-        <div>
-            <h1>Creator Applications</h1>
-            <p>
-                Review AlQlic monetization applications.
-            </p>
-        </div>
-
-        <a
-            href="connect.html"
-            class="back-link"
-        >
-            Back to AlQlic
-        </a>
-
-    </header>
-
     <main class="admin-container">
 
-        <div
-            id="loadingMessage"
-            class="loading-message"
-        >
-            Loading applications...
+        <div class="admin-header">
+            <div>
+                <h1>Creator Applications</h1>
+                <p>Review and manage AlQlic creator applications.</p>
+            </div>
+
+            <a href="settings.html" class="back-button">← Back</a>
         </div>
 
-        <div
-            id="applicationsContainer"
-            class="applications-container"
-        ></div>
+        <!-- Loading message -->
+        <div id="loadingMessage" class="message">
+            Loading creator applications...
+        </div>
+
+        <!-- Access denied message -->
+        <div id="accessDenied" class="message error-message" style="display: none;">
+            Access denied. This page is for AlQlic administrators only.
+        </div>
+
+        <!-- Applications -->
+        <section id="applicationsContainer" class="applications-container">
+            <!-- Creator applications will appear here -->
+        </section>
 
     </main>
 
-    <script
-        type="module"
-        src="admin-creators.js"
-    ></script>
+    <script type="module" src="admin-creators.js"></script>
 
 </body>
-
 </html>
