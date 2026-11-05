@@ -159,3 +159,103 @@ onAuthStateChanged(auth, async (user) => {
         }
     }
 });
+
+// ===============================
+// APPROVE OR REJECT APPLICATION
+// ===============================
+
+applicationsContainer.addEventListener(
+    "click",
+    async (event) => {
+
+        const button = event.target;
+
+        // Check if Approve button was clicked
+        if (
+            button.classList.contains(
+                "approve-btn"
+            )
+        ) {
+
+            const applicationId =
+                button.dataset.id;
+
+            try {
+
+                await updateDoc(
+                    doc(
+                        db,
+                        "creatorApplications",
+                        applicationId
+                    ),
+                    {
+                        status: "approved"
+                    }
+                );
+
+                alert(
+                    "Creator application approved!"
+                );
+
+                // Reload the page to show
+                // the new status
+                window.location.reload();
+
+            } catch (error) {
+
+                console.error(
+                    "Error approving application:",
+                    error
+                );
+
+                alert(
+                    "Unable to approve application."
+                );
+            }
+        }
+
+        // Check if Reject button was clicked
+        if (
+            button.classList.contains(
+                "reject-btn"
+            )
+        ) {
+
+            const applicationId =
+                button.dataset.id;
+
+            try {
+
+                await updateDoc(
+                    doc(
+                        db,
+                        "creatorApplications",
+                        applicationId
+                    ),
+                    {
+                        status: "rejected"
+                    }
+                );
+
+                alert(
+                    "Creator application rejected."
+                );
+
+                // Reload the page to show
+                // the new status
+                window.location.reload();
+
+            } catch (error) {
+
+                console.error(
+                    "Error rejecting application:",
+                    error
+                );
+
+                alert(
+                    "Unable to reject application."
+                );
+            }
+        }
+    }
+);
