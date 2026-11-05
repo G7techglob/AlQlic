@@ -137,29 +137,41 @@ onAuthStateChanged(auth, async (user) => {
                         ${application.socialLink || "Not provided"}
                     </p>
 
-                    <p>
-                        <strong>Status:</strong>
-                        <span class="application-status">
-                            ${application.status || "pending"}
-                        </span>
-                    </p>
+                   <p>
+    <strong>Status:</strong>
+    <span class="application-status">
+        ${application.status || "pending"}
+    </span>
+</p>
 
-                    <div class="application-actions">
+${
+    application.status === "pending"
+        ? `
+            <div class="application-actions">
 
-                        <button
-                            class="approve-btn"
-                            data-id="${applicationDoc.id}"
-                        >
-                            Approve
-                        </button>
+                <button
+                    class="approve-btn"
+                    data-id="${applicationDoc.id}"
+                >
+                    Approve
+                </button>
 
-                        <button
-                            class="reject-btn"
-                            data-id="${applicationDoc.id}"
-                        >
-                            Reject
-                        </button>
+                <button
+                    class="reject-btn"
+                    data-id="${applicationDoc.id}"
+                >
+                    Reject
+                </button>
 
+            </div>
+        `
+        : `
+            <p class="application-completed">
+                This application has already been
+                ${application.status}.
+            </p>
+        `
+}
                     </div>
                 `;
 
