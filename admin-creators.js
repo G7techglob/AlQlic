@@ -23,12 +23,18 @@ const applicationsContainer =
 // LOAD ADMIN PAGE
 // ===============================
 
+// AlQlic administrator email
+const adminEmail = "matchconnect9@gmail.com";
+
 onAuthStateChanged(auth, async (user) => {
 
+    const accessDenied =
+        document.getElementById("accessDenied");
+
     console.log("Admin email:", user?.email);
-console.log("Admin UID:", user?.uid);
+    console.log("Admin UID:", user?.uid);
     
-    // User must be logged in
+      // User must be logged in
     if (!user) {
 
         alert("Please log in first.");
@@ -38,8 +44,23 @@ console.log("Admin UID:", user?.uid);
         return;
     }
 
-    try {
+    // Check if the logged-in user is an administrator
+    if (user.email !== adminEmail) {
 
+        console.log("Access denied for:", user.email);
+
+        if (loadingMessage) {
+            loadingMessage.style.display = "none";
+        }
+
+        if (accessDenied) {
+            accessDenied.style.display = "block";
+        }
+
+        return;
+    }
+
+    try {
         const applicationsRef =
             collection(
                 db,
