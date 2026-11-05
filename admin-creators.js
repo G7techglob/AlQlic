@@ -25,6 +25,9 @@ const applicationsContainer =
 
 onAuthStateChanged(auth, async (user) => {
 
+    console.log("Admin email:", user?.email);
+console.log("Admin UID:", user?.uid);
+    
     // User must be logged in
     if (!user) {
 
