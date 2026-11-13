@@ -8,74 +8,89 @@
     <title>AlQlic Streaming</title>
 
     <link rel="stylesheet" href="stream.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
 </head>
 
 <body>
 
 <header class="stream-header">
 
-    <button class="back-btn" onclick="location.href='videos.html'">
-        <i class="fa-solid fa-arrow-left"></i>
-    </button>
-
-    <h2>Streaming</h2>
-
-    <div class="stream-header-actions">
+    <div class="stream-header-top">
 
         <button
-            id="toggleStreamSearch"
-            class="search-header-btn"
+            class="back-btn"
+            onclick="location.href='videos.html'"
             type="button"
-            aria-label="Open search"
         >
-            <i class="fa-solid fa-search"></i>
+            <i class="fa-solid fa-arrow-left"></i>
         </button>
 
-        <button class="go-live-btn" onclick="location.href='create-live.html'">
+        <h2>Streaming</h2>
+
+        <button
+            class="go-live-btn"
+            onclick="location.href='create-live.html'"
+            type="button"
+        >
             <i class="fa-solid fa-video"></i>
             Go Live
         </button>
 
     </div>
 
+    <!-- SEARCH BOX IN HEADER -->
+
+    <div class="stream-search">
+
+        <i class="fa-solid fa-search"></i>
+
+        <input
+            type="text"
+            id="streamSearch"
+            placeholder="Search live streamers..."
+            autocomplete="off"
+        >
+
+        <button
+            id="clearStreamSearch"
+            type="button"
+            aria-label="Clear search"
+        >
+            <i class="fa-solid fa-times"></i>
+        </button>
+
+    </div>
+
 </header>
 
-<!-- SEARCH BOX (HIDDEN INITIALLY) -->
-<div id="streamSearchBox" class="stream-search" style="display:none;">
-
-    <i class="fa-solid fa-search"></i>
-
-    <input
-        type="text"
-        id="streamSearch"
-        placeholder="Search live streamers..."
-        autocomplete="off"
-    >
-
-    <button id="clearStreamSearch" type="button">
-        <i class="fa-solid fa-times"></i>
-    </button>
-
-</div>
 
 <main class="stream-container">
 
     <section class="stream-tabs">
 
         <button class="stream-tab active" id="liveTab">
+
             <i class="fa-solid fa-tower-broadcast"></i>
             Live
+
         </button>
 
         <button class="stream-tab" id="videoTab">
+
             <i class="fa-solid fa-play"></i>
             Videos
+
         </button>
 
     </section>
 
+
     <!-- LIVE STREAMS -->
+
     <section id="liveSection">
 
         <h3>Live Now</h3>
@@ -88,7 +103,9 @@
 
     </section>
 
-    <!-- VIDEOS -->
+
+    <!-- SAVED VIDEOS -->
+
     <section id="videoSection" style="display:none;">
 
         <h3>Videos</h3>
@@ -98,6 +115,7 @@
     </section>
 
 </main>
+
 
 <script type="module" src="stream.js"></script>
 
