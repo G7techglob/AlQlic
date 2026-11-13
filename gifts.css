@@ -1,0 +1,224 @@
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+}
+
+/* HEADER */
+
+.gifts-header {
+    background: #ffffff;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.gifts-header h2 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.gifts-header button {
+    border: none;
+    background: #f1f1f1;
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.gifts-header a {
+    color: #ff4d6d;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* MAIN */
+
+.gifts-container {
+    width: 100%;
+    max-width: 950px;
+    margin: auto;
+    padding: 18px;
+}
+
+/* INTRO */
+
+.gift-intro {
+    background: linear-gradient(135deg, #ff4d6d, #a83279);
+    color: white;
+    padding: 25px 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.gift-intro h1 {
+    margin: 0 0 8px;
+    font-size: 25px;
+}
+
+.gift-intro p {
+    margin: 0 0 18px;
+    font-size: 14px;
+}
+
+.wallet-balance {
+    background: rgba(255,255,255,0.18);
+    padding: 12px;
+    border-radius: 9px;
+    font-size: 14px;
+}
+
+/* CATEGORIES */
+
+.gift-categories {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+}
+
+.gift-categories button {
+    border: 1px solid #ddd;
+    background: white;
+    padding: 10px 17px;
+    border-radius: 25px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.gift-categories button.active {
+    background: #ff4d6d;
+    color: white;
+    border-color: #ff4d6d;
+}
+
+/* GIFT SECTION */
+
+.gift-section h2 {
+    font-size: 19px;
+    margin-bottom: 15px;
+}
+
+.gift-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+/* GIFT CARD */
+
+.gift-option {
+    background: white;
+    border: 2px solid transparent;
+    border-radius: 13px;
+    padding: 16px 8px;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.gift-option:hover {
+    border-color: #ff4d6d;
+}
+
+.gift-option.selected {
+    border-color: #ff4d6d;
+    background: #fff1f4;
+}
+
+.gift-icon {
+    font-size: 35px;
+}
+
+.gift-option span {
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.gift-option small {
+    color: #ff4d6d;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+/* SELECTED GIFT */
+
+.gift-details {
+    background: white;
+    padding: 20px;
+    border-radius: 13px;
+    margin-top: 22px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.gift-details h3 {
+    margin-top: 0;
+}
+
+.gift-details button {
+    width: 100%;
+    border: none;
+    background: #ff4d6d;
+    color: white;
+    padding: 13px;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.gift-details button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* MOBILE */
+
+@media (max-width: 480px) {
+
+    .gifts-container {
+        padding: 12px;
+    }
+
+    .gift-list {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .gift-option {
+        padding: 13px 5px;
+    }
+
+    .gift-icon {
+        font-size: 29px;
+    }
+
+    .gift-option span {
+        font-size: 11px;
+    }
+
+    .gift-option small {
+        font-size: 10px;
+    }
+
+}
