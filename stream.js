@@ -31,9 +31,6 @@ const videoFeed = document.getElementById("videoFeed");
 const streamSearch = document.getElementById("streamSearch");
 const clearStreamSearch = document.getElementById("clearStreamSearch");
 
-const toggleStreamSearch = document.getElementById("toggleStreamSearch");
-const streamSearchBox = document.getElementById("streamSearchBox");
-
 
 // ===================================
 // SEARCH STATE
@@ -156,49 +153,6 @@ function filterStreamResults() {
     }
 
 }
-
-
-// ===================================
-// OPEN AND CLOSE HEADER SEARCH
-// ===================================
-
-if (toggleStreamSearch && streamSearchBox) {
-
-    toggleStreamSearch.addEventListener("click", () => {
-
-        const isHidden =
-            streamSearchBox.style.display === "none";
-
-        if (isHidden) {
-
-            streamSearchBox.style.display = "flex";
-
-            toggleStreamSearch.setAttribute(
-                "aria-label",
-                "Close search"
-            );
-
-            streamSearch.focus();
-
-        } else {
-
-            streamSearchBox.style.display = "none";
-
-            streamSearch.value = "";
-
-            toggleStreamSearch.setAttribute(
-                "aria-label",
-                "Open search"
-            );
-
-            filterStreamResults();
-
-        }
-
-    });
-
-}
-
 
 // ===================================
 // SEARCH WHILE TYPING
