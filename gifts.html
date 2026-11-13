@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AlQlic Gifts</title>
+
+    <link rel="stylesheet" href="gifts.css">
+</head>
+
+<body>
+
+<header class="gifts-header">
+    <button onclick="history.back()">←</button>
+    <h2>🎁 AlQlic Gifts</h2>
+    <a href="wallet.html">My Wallet</a>
+</header>
+
+<main class="gifts-container">
+
+    <section class="gift-intro">
+        <h1>Send Amazing Gifts</h1>
+        <p>Support your favourite creators on AlQlic LIVE.</p>
+        <div class="wallet-balance">
+            Your gift balance: <strong id="walletBalance">Loading...</strong>
+        </div>
+    </section>
+
+    <nav class="gift-categories">
+        <button class="active" data-category="all">All</button>
+        <button data-category="popular">Popular</button>
+        <button data-category="flowers">Flowers</button>
+        <button data-category="premium">Premium</button>
+        <button data-category="luxury">Luxury</button>
+    </nav>
+
+    <section class="gift-section">
+        <h2>Choose a Gift</h2>
+        <div id="giftList" class="gift-list"></div>
+    </section>
+
+    <section id="giftDetails" class="gift-details" hidden>
+        <h3 id="selectedGiftName"></h3>
+        <p id="selectedGiftPrice"></p>
+        <button id="confirmGiftBtn" disabled>
+            Continue
+        </button>
+    </section>
+
+</main>
+
+<script type="module" src="gifts.js"></script>
+
+</body>
+</html>
