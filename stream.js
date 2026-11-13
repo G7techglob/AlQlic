@@ -429,3 +429,90 @@ function escapeHTML(value = "") {
         .replaceAll("'", "&#039;");
 
                       }
+
+// ===================================
+// STREAM AND VIDEO SEARCH
+// ===================================
+
+const streamSearch = document.getElementById("streamSearch");
+const clearStreamSearch = document.getElementById("clearStreamSearch");
+
+const liveTab = document.getElementById("liveTab");
+const videoTab = document.getElementById("videoTab");
+
+const liveStreams = document.getElementById("liveStreams");
+const videoFeed = document.getElementById("videoFeed");
+
+function filterStreamResults() {
+
+    const searchText = streamSearch.value
+        .trim()
+        .toLowerCase();
+
+    const activeLive = liveTab.classList.contains("active");
+
+    const container = activeLive
+        ? liveStreams
+        : videoFeed;
+
+    if (!container) return;
+
+    const items = container.children;
+
+    Array.from(items).forEach(item => {
+
+        const itemText = item.textContent.toLowerCase();
+
+        item.style.display = itemText.includes(searchText)
+            ? ""
+            : "none";
+
+    });
+
+}
+
+if (streamSearch) {
+
+    streamSearch.addEventListener("input", filterStreamResults);
+
+}
+
+if (clearStreamSearch) {
+
+    clearStreamSearch.addEventListener("click", () => {
+
+        streamSearch.value = "";
+
+        filterStreamResults();
+
+        streamSearch.focus();
+
+    });
+
+}
+
+// Change search placeholder when switching tabs
+
+if (liveTab && videoTab) {
+
+    liveTab.addEventListener("click", () => {
+
+        streamSearch.placeholder = "Search live streamers...";
+
+        streamSearch.value = "";
+
+        filterStreamResults();
+
+    });
+
+    videoTab.addEventListener("click", () => {
+
+        streamSearch.placeholder = "Search videos...";
+
+        streamSearch.value = "";
+
+        filterStreamResults();
+
+    });
+
+}
