@@ -1,63 +1,135 @@
+
 import { auth } from "./firebase.js";
-import { 
+
+import {
     sendEmailVerification,
-    reload
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    reload,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 
 const resendBtn = document.getElementById("resendBtn");
 const message = document.getElementById("message");
 
+const verifyBtn = document.querySelector(
+    'button[onclick="checkVerification()"]'
+);
+
+let currentUser = null;
+let authReady = false;
+
+
+// WAIT FOR FIREBASE LOGIN STATUS
+
+onAuthStateChanged(auth, (user) => {
+
+    currentUser = user;
+    authReady = true;
+
+    if (!user) {
+        message.textContent =
+            "Please log in to your AlQlic account before verifying your email.";
+
+        resendBtn.disabled = true;
+        if (verifyBtn) verifyBtn.disabled = true;
+
+        return;
+    }
+
+    resendBtn.disabled = false;
+    if (verifyBtn) verifyBtn.disabled = false;
+
+    message.textContent =
+        `Verification email is for ${user.email}`;
+
+});
+
+
+// RESEND VERIFICATION EMAIL
 
 resendBtn.addEventListener("click", async () => {
 
-    const user = auth.currentUser;
+    if (!authReady || !currentUser) {
+        message.textContent =
+            "Please log in first.";
 
-    if (!user) {
-        message.textContent = "No user found. Please register again.";
         return;
     }
 
     try {
 
-        await sendEmailVerification(user);
+        resendBtn.disabled = true;
 
-        message.textContent = 
-        "Verification email sent again. Check your Gmail inbox.";
+        await sendEmailVerification(currentUser);
+
+        message.textContent =
+            "Verification email sent. Please check your Gmail inbox.";
 
     } catch (error) {
 
-        message.textContent = error.message;
+        console.error("Resend verification error:", error);
+
+        message.textContent =
+            error.message;
+
+    } finally {
+
+        resendBtn.disabled = false;
 
     }
 
 });
 
 
-window.checkVerification = async function () {
+// CHECK EMAIL VERIFICATION
 
-    const user = auth.currentUser;
+async function checkVerification() {
 
-    if (!user) {
-        message.textContent = "Please login first.";
+    if (!authReady || !currentUser) {
+        message.textContent =
+            "Please log in first.";
+
         return;
     }
 
-    await reload(user);
+    try {
 
-    if (user.emailVerified) {
+        await reload(currentUser);
 
-        message.textContent = "Email verified successfully!";
+        if (auth.currentUser.emailVerified) {
 
-        setTimeout(() => {
-            window.location.href = "index.html";
-        }, 1500);
+            message.textContent =
+                "Email verified successfully! Welcome to AlQlic.";
 
-    } else {
+            setTimeout(() => {
 
-        message.textContent = 
-        "Your email is not verified yet. Please check Gmail.";
+                window.location.href = "index.html";
+
+            }, 1500);
+
+        } else {
+
+            message.textContent =
+                "Your email is not verified yet. Please check Gmail and click the verification link.";
+
+        }
+
+    } catch (error) {
+
+        console.error("Verification check error:", error);
+
+        message.textContent =
+            error.message;
 
     }
 
-};
+}
+
+
+// CONNECT VERIFICATION BUTTON
+
+if (verifyBtn) {
+
+    verifyBtn.addEventListener("click", checkVerification);
+
+}
