@@ -75,6 +75,15 @@ body {
     font-size: 14px;
 }
 
+.creator-info {
+    margin-top: 14px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
 .wallet-balance {
     background: rgba(255,255,255,0.18);
     padding: 12px;
