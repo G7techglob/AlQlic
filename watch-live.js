@@ -78,8 +78,6 @@ let currentUser = null;
 
 let creatorId = null;
 
-let viewerCountAdded = false;
-
 let streamEnded = false;
 
 
@@ -536,52 +534,6 @@ async function joinLive() {
     );
 
 
-    // =================================================
-    // INCREASE VIEWER COUNT
-    // =================================================
-
-    if (
-        !viewerCountAdded
-    ) {
-
-        viewerCountAdded =
-            true;
-
-
-        try {
-
-            await updateDoc(
-
-                doc(
-                    db,
-                    "liveStreams",
-                    streamId
-                ),
-
-                {
-
-                    viewerCount:
-                        increment(1)
-
-                }
-
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "Viewer count error:",
-                error
-            );
-
-        }
-
-    }
-
-}
-
-
 // =====================================================
 // LIVE CHAT
 // =====================================================
@@ -932,58 +884,19 @@ function escapeHTML(
 
 }
 
-
 // =====================================================
 // CLEANUP
 // =====================================================
 
 window.addEventListener(
     "beforeunload",
-    async () => {
+    () => {
 
-        if (
-            peerConnection
-        ) {
+        if (peerConnection) {
 
             peerConnection.close();
 
-        }
-
-
-        if (
-            !viewerCountAdded
-        ) {
-
-            return;
-
-        }
-
-
-        try {
-
-            await updateDoc(
-
-                doc(
-                    db,
-                    "liveStreams",
-                    streamId
-                ),
-
-                {
-
-                    viewerCount:
-                        increment(-1)
-
-                }
-
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Viewer cleanup error:",
-                error
-            );
+            peerConnection = null;
 
         }
 
