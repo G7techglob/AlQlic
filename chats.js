@@ -1,3 +1,4 @@
+import "./auth-guard.js";
 
 import { auth, db } from "./firebase.js";
 
@@ -48,8 +49,26 @@ function timeFormat(timestamp) {
 onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
-        location.href = "login.html";
+        location.replace("login.html");
         return;
+    }
+
+    try {
+
+        await user.reload();
+
+        if (!auth.currentUser || !auth.currentUser.emailVerified) {
+            location.replace("verify-email.html");
+            return;
+        }
+
+    } catch (error) {
+
+        console.error("Chat authentication error:", error);
+
+        location.replace("login.html");
+        return;
+
     }
 
     loading();
