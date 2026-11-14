@@ -85,17 +85,44 @@ loadCreatePost();
 
 
 // =====================================================
-// CHECK LOGIN STATUS
+// CHECK LOGIN AND EMAIL VERIFICATION
 // =====================================================
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
 
-    window.location.href =
-      "login.html";
-
+    window.location.href = "login.html";
     return;
+
+  }
+
+  try {
+
+    await user.reload();
+
+    if (!auth.currentUser.emailVerified) {
+
+      window.location.href = "verify-email.html";
+      return;
+
+    }
+
+    // User is logged in and email is verified
+    loadCreatePost();
+
+    console.log("AlQlic authentication successful.");
+
+  } catch (error) {
+
+    console.error("Authentication check failed:", error);
+
+    alert("Unable to verify your account. Please log in again.");
+
+    await signOut(auth);
+
+    window.location.href = "login.html";
+
   }
 
 });
