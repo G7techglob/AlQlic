@@ -5,7 +5,13 @@ import {
     doc,
     getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+// Get creator information from the LIVE page URL
+const params = new URLSearchParams(window.location.search);
 
+const creatorId = params.get("creatorId");
+const streamId = params.get("streamId");
+
+const creatorInfo = document.getElementById("creatorInfo");
 const gifts = [
     {
         name: "Tiny Heart",
@@ -90,6 +96,56 @@ const walletBalance = document.getElementById("walletBalance");
 
 let selectedGift = null;
 let activeCategory = "all";
+
+// Load LIVE creator information
+async function loadCreatorInfo() {
+
+    if (!creatorId) {
+        creatorInfo.textContent =
+            "No creator selected. Open Gifts from a LIVE stream.";
+        return;
+    }
+
+    try {
+
+        const creatorRef = doc(
+            db,
+            "users",
+            creatorId
+        );
+
+        const creatorSnap = await getDoc(creatorRef);
+
+        if (!creatorSnap.exists()) {
+            creatorInfo.textContent =
+                "Creator profile not found.";
+            return;
+        }
+
+        const creator = creatorSnap.data();
+
+        const creatorName =
+            creator.name ||
+            creator.username ||
+            "AlQlic Creator";
+
+        creatorInfo.textContent =
+            `Sending gifts to ${creatorName}`;
+
+    } catch (error) {
+
+        console.error(
+            "Creator loading error:",
+            error
+        );
+
+        creatorInfo.textContent =
+            "Unable to load creator information.";
+
+    }
+}
+
+loadCreatorInfo();
 
 // Wallet connection will be added after we confirm
 // the existing AlQlic wallet document structure.
