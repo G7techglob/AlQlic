@@ -76,6 +76,8 @@ let viewerId = null;
 
 let currentUser = null;
 
+let creatorId = null;
+
 let viewerCountAdded = false;
 
 let streamEnded = false;
