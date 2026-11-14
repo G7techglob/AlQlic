@@ -5,6 +5,7 @@ import {
     getDoc,
     setDoc,
     updateDoc,
+    deleteDoc,
     collection,
     addDoc,
     onSnapshot,
@@ -77,6 +78,8 @@ let viewerId = null;
 let currentUser = null;
 
 let creatorId = null;
+
+let viewerAnswerRef = null;
 
 let streamEnded = false;
 
@@ -460,18 +463,18 @@ async function joinLive() {
     // LISTEN FOR HOST ANSWER
     // =================================================
 
-    const answerRef =
-        doc(
-            db,
-            "liveStreams",
-            streamId,
-            "viewers",
-            viewerId
-        );
+  viewerAnswerRef =
+    doc(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers",
+        viewerId
+    );
 
 
     onSnapshot(
-        answerRef,
+    viewerAnswerRef,
         async snapshot => {
 
             if (
@@ -883,7 +886,6 @@ function escapeHTML(
         );
 
 }
-
 // =====================================================
 // CLEANUP
 // =====================================================
@@ -897,6 +899,20 @@ window.addEventListener(
             peerConnection.close();
 
             peerConnection = null;
+
+        }
+
+        if (viewerAnswerRef) {
+
+            deleteDoc(viewerAnswerRef)
+                .catch(error => {
+
+                    console.error(
+                        "Viewer document cleanup error:",
+                        error
+                    );
+
+                });
 
         }
 
