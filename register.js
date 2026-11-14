@@ -38,6 +38,11 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    // Send verification email immediately after account creation
+await sendEmailVerification(user);
+
+console.log("Verification email sent successfully");
+
     // 2. Save user profile in Firestore
     await setDoc(doc(db, "users", user.uid), {
       email: user.email,
@@ -50,7 +55,7 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
     console.log("User profile saved successfully");
 
 
-// 3. Create MatchConnect wallet automatically
+// 3. Create alqlic wallet automatically
 //    through the secure Firebase backend
 
 const createWallet =
@@ -71,7 +76,6 @@ console.log(
 );
 
 // Send verification email
-await sendEmailVerification(user);
 
 alert("Account created successfully! Please check your Gmail and verify your email.");
 
