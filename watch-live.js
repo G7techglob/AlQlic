@@ -67,6 +67,7 @@ const giftBtn =
 const shareBtn =
     document.getElementById("shareBtn");
 
+
 // =====================================================
 // VARIABLES
 // =====================================================
@@ -81,7 +82,11 @@ let creatorId = null;
 
 let viewerAnswerRef = null;
 
+let viewerOfferRef = null;
+
 let streamEnded = false;
+
+let cleanupStarted = false;
 
 
 // =====================================================
@@ -136,21 +141,26 @@ auth.onAuthStateChanged(
                 "Please log in to watch this live stream."
             );
 
+            window.location.href =
+                "login.html";
+
             return;
 
         }
 
 
-        currentUser =
-            user;
+        currentUser = user;
 
-        viewerId =
-            user.uid;
+        viewerId = user.uid;
 
 
         try {
 
             await loadStream();
+
+            if (streamEnded) {
+                return;
+            }
 
             await joinLive();
 
@@ -195,6 +205,11 @@ async function loadStream() {
             "This live stream does not exist."
         );
 
+        window.location.href =
+            "stream.html";
+
+        streamEnded = true;
+
         return;
 
     }
@@ -203,7 +218,9 @@ async function loadStream() {
     const stream =
         streamSnap.data();
 
-    creatorId = stream.hostId || null;
+
+    creatorId =
+        stream.hostId || null;
 
 
     if (
@@ -214,8 +231,7 @@ async function loadStream() {
             "This live stream has ended."
         );
 
-        streamEnded =
-            true;
+        streamEnded = true;
 
         return;
 
@@ -224,33 +240,52 @@ async function loadStream() {
 
     const streamName =
         stream.title ||
-        "MatchConnect Live";
+        "AlQlic Live";
 
 
-    title.textContent =
-        streamName;
+    if (title) {
 
-    streamTitle.textContent =
-        streamName;
+        title.textContent =
+            streamName;
 
-
-    viewerCount.textContent =
-        stream.viewerCount || 0;
+    }
 
 
-    hostInfo.textContent =
-        stream.hostName ||
-        "MatchConnect User";
+    if (streamTitle) {
+
+        streamTitle.textContent =
+            streamName;
+
+    }
 
 
-    // Update likes if available
+    if (viewerCount) {
+
+        viewerCount.textContent =
+            stream.viewerCount || 0;
+
+    }
+
+
+    if (hostInfo) {
+
+        hostInfo.textContent =
+            stream.hostName ||
+            "AlQlic User";
+
+    }
+
 
     const likes =
         stream.likes || 0;
 
 
-    likeBtn.innerHTML =
-        `❤️ <span>${likes}</span>`;
+    if (likeBtn) {
+
+        likeBtn.innerHTML =
+            `❤️ <span>${likes}</span>`;
+
+    }
 
 }
 
@@ -291,7 +326,8 @@ async function joinLive() {
 
             if (
                 event.streams &&
-                event.streams[0]
+                event.streams[0] &&
+                remoteVideo
             ) {
 
                 remoteVideo.srcObject =
@@ -316,18 +352,14 @@ async function joinLive() {
 
 
     // =================================================
-    // VIEWER ICE CANDIDATE
+    // VIEWER ICE CANDIDATES
     // =================================================
 
     peerConnection.onicecandidate =
         async event => {
 
-            if (
-                !event.candidate
-            ) {
-
+            if (!event.candidate) {
                 return;
-
             }
 
 
@@ -367,6 +399,11 @@ async function joinLive() {
     peerConnection.onconnectionstatechange =
         () => {
 
+            if (!peerConnection) {
+                return;
+            }
+
+
             console.log(
                 "WebRTC connection:",
                 peerConnection.connectionState
@@ -380,18 +417,6 @@ async function joinLive() {
 
                 console.error(
                     "WebRTC connection failed."
-                );
-
-            }
-
-
-            if (
-                peerConnection.connectionState ===
-                "disconnected"
-            ) {
-
-                console.log(
-                    "Viewer disconnected."
                 );
 
             }
@@ -424,7 +449,7 @@ async function joinLive() {
     // SAVE OFFER
     // =================================================
 
-    const offerRef =
+    viewerOfferRef =
         doc(
             db,
             "liveStreams",
@@ -435,7 +460,7 @@ async function joinLive() {
 
 
     await setDoc(
-        offerRef,
+        viewerOfferRef,
         {
 
             type:
@@ -460,29 +485,29 @@ async function joinLive() {
 
 
     // =================================================
+    // VIEWER ANSWER DOCUMENT
+    // =================================================
+
+    viewerAnswerRef =
+        doc(
+            db,
+            "liveStreams",
+            streamId,
+            "viewers",
+            viewerId
+        );
+
+
+    // =================================================
     // LISTEN FOR HOST ANSWER
     // =================================================
 
-  viewerAnswerRef =
-    doc(
-        db,
-        "liveStreams",
-        streamId,
-        "viewers",
-        viewerId
-    );
-
-
     onSnapshot(
-    viewerAnswerRef,
+        viewerAnswerRef,
         async snapshot => {
 
-            if (
-                !snapshot.exists()
-            ) {
-
+            if (!snapshot.exists()) {
                 return;
-
             }
 
 
@@ -490,18 +515,14 @@ async function joinLive() {
                 snapshot.data();
 
 
-            if (
-                !data.answer
-            ) {
-
+            if (!data.answer) {
                 return;
-
             }
 
 
             if (
-                peerConnection
-                    .currentRemoteDescription
+                peerConnection &&
+                peerConnection.currentRemoteDescription
             ) {
 
                 return;
@@ -510,6 +531,11 @@ async function joinLive() {
 
 
             try {
+
+                if (!peerConnection) {
+                    return;
+                }
+
 
                 await peerConnection
                     .setRemoteDescription(
@@ -537,6 +563,69 @@ async function joinLive() {
     );
 
 
+    // =================================================
+    // RECEIVE HOST ICE CANDIDATES
+    // =================================================
+
+    const hostCandidatesRef =
+        collection(
+            db,
+            "liveStreams",
+            streamId,
+            "viewers",
+            viewerId,
+            "hostCandidates"
+        );
+
+
+    onSnapshot(
+        hostCandidatesRef,
+        async snapshot => {
+
+            for (
+                const change of snapshot.docChanges()
+            ) {
+
+                if (
+                    change.type !== "added"
+                ) {
+                    continue;
+                }
+
+
+                try {
+
+                    if (
+                        peerConnection &&
+                        peerConnection.remoteDescription
+                    ) {
+
+                        await peerConnection
+                            .addIceCandidate(
+                                new RTCIceCandidate(
+                                    change.doc.data()
+                                )
+                            );
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Host ICE error:",
+                        error
+                    );
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
 // =====================================================
 // LIVE CHAT
 // =====================================================
@@ -551,20 +640,52 @@ function listenForChat() {
             "messages"
         );
 
+
     onSnapshot(
         commentsRef,
         snapshot => {
 
-            chatMessages.innerHTML =
-                "";
+            if (!chatMessages) {
+                return;
+            }
+
+
+            const messages = [];
 
 
             snapshot.forEach(
                 commentDoc => {
 
-                    const comment =
-                        commentDoc.data();
+                    messages.push(
+                        commentDoc.data()
+                    );
 
+                }
+            );
+
+
+            messages.sort(
+                (a, b) => {
+
+                    const timeA =
+                        a.createdAt
+                            ?.toMillis?.() || 0;
+
+                    const timeB =
+                        b.createdAt
+                            ?.toMillis?.() || 0;
+
+                    return timeA - timeB;
+
+                }
+            );
+
+
+            chatMessages.innerHTML = "";
+
+
+            messages.forEach(
+                comment => {
 
                     const message =
                         document.createElement(
@@ -614,6 +735,14 @@ function listenForChat() {
             chatMessages.scrollTop =
                 chatMessages.scrollHeight;
 
+        },
+        error => {
+
+            console.error(
+                "Live chat error:",
+                error
+            );
+
         }
     );
 
@@ -624,43 +753,51 @@ function listenForChat() {
 // SEND CHAT
 // =====================================================
 
-sendChatBtn.addEventListener(
-    "click",
-    sendChat
-);
+if (sendChatBtn) {
+
+    sendChatBtn.addEventListener(
+        "click",
+        sendChat
+    );
+
+}
 
 
-chatInput.addEventListener(
-    "keydown",
-    event => {
+if (chatInput) {
 
-        if (
-            event.key ===
-            "Enter"
-        ) {
+    chatInput.addEventListener(
+        "keydown",
+        event => {
 
-            event.preventDefault();
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
 
-            sendChat();
+                event.preventDefault();
+
+                sendChat();
+
+            }
 
         }
+    );
 
-    }
-);
+}
 
 
 async function sendChat() {
+
+    if (!chatInput || !currentUser) {
+        return;
+    }
+
 
     const text =
         chatInput.value.trim();
 
 
     if (!text) {
-        return;
-    }
-
-
-    if (!currentUser) {
         return;
     }
 
@@ -684,7 +821,7 @@ async function sendChat() {
                 username:
                     currentUser.displayName ||
                     currentUser.email ||
-                    "User",
+                    "AlQlic User",
 
                 photoURL:
                     currentUser.photoURL ||
@@ -701,8 +838,7 @@ async function sendChat() {
         );
 
 
-        chatInput.value =
-            "";
+        chatInput.value = "";
 
 
     } catch (error) {
@@ -726,128 +862,153 @@ async function sendChat() {
 // LIKE
 // =====================================================
 
-likeBtn.addEventListener(
-    "click",
-    async () => {
+if (likeBtn) {
 
-        if (!currentUser) {
-            return;
+    likeBtn.addEventListener(
+        "click",
+        async () => {
+
+            if (!currentUser) {
+                return;
+            }
+
+
+            try {
+
+                await updateDoc(
+
+                    doc(
+                        db,
+                        "liveStreams",
+                        streamId
+                    ),
+
+                    {
+
+                        likes:
+                            increment(1)
+
+                    }
+
+                );
+
+
+                likeBtn.disabled = true;
+
+                likeBtn.innerHTML =
+                    "❤️ Liked";
+
+
+            } catch (error) {
+
+                console.error(
+                    "Like error:",
+                    error
+                );
+
+            }
+
         }
+    );
 
-
-        try {
-
-            await updateDoc(
-
-                doc(
-                    db,
-                    "liveStreams",
-                    streamId
-                ),
-
-                {
-
-                    likes:
-                        increment(1)
-
-                }
-
-            );
-
-
-            likeBtn.disabled =
-                true;
-
-
-            likeBtn.innerHTML =
-                "❤️ Liked";
-
-
-        } catch (error) {
-
-            console.error(
-                "Like error:",
-                error
-            );
-
-        }
-
-    }
-);
+}
 
 
 // =====================================================
 // SEND GIFT
 // =====================================================
 
-giftBtn.addEventListener("click", () => {
+if (giftBtn) {
 
-    if (!creatorId) {
-        alert("Creator information is unavailable.");
-        return;
-    }
+    giftBtn.addEventListener(
+        "click",
+        () => {
 
-    const giftURL =
-        `gifts.html?creatorId=${encodeURIComponent(creatorId)}&streamId=${encodeURIComponent(streamId)}`;
+            if (!creatorId) {
 
-    window.location.href = giftURL;
+                alert(
+                    "Creator information is unavailable."
+                );
 
-});
+                return;
+
+            }
+
+
+            const giftURL =
+                `gifts.html?creatorId=${encodeURIComponent(
+                    creatorId
+                )}&streamId=${encodeURIComponent(
+                    streamId
+                )}`;
+
+
+            window.location.href =
+                giftURL;
+
+        }
+    );
+
+}
+
 
 // =====================================================
 // SHARE
 // =====================================================
 
-shareBtn.addEventListener(
-    "click",
-    async () => {
+if (shareBtn) {
 
-        const shareURL =
-            window.location.href;
+    shareBtn.addEventListener(
+        "click",
+        async () => {
+
+            const shareURL =
+                window.location.href;
 
 
-        try {
+            try {
 
-            if (
-                navigator.share
-            ) {
+                if (navigator.share) {
 
-                await navigator.share({
+                    await navigator.share({
 
-                    title:
-                        title.textContent,
+                        title:
+                            title?.textContent ||
+                            "AlQlic Live",
 
-                    text:
-                        "Watch this live stream on MatchConnect!",
+                        text:
+                            "Watch this live stream on AlQlic!",
 
-                    url:
+                        url:
+                            shareURL
+
+                    });
+
+                } else {
+
+                    await navigator.clipboard.writeText(
                         shareURL
-
-                });
-
-            } else {
-
-                await navigator.clipboard.writeText(
-                    shareURL
-                );
+                    );
 
 
-                alert(
-                    "Live stream link copied!"
+                    alert(
+                        "Live stream link copied!"
+                    );
+
+                }
+
+            } catch (error) {
+
+                console.log(
+                    "Share cancelled."
                 );
 
             }
 
-        } catch (error) {
-
-            console.log(
-                "Share cancelled."
-            );
-
         }
+    );
 
-    }
-);
+}
 
 
 // =====================================================
@@ -886,35 +1047,86 @@ function escapeHTML(
         );
 
 }
+
+
 // =====================================================
-// CLEANUP
+// CLEANUP VIEWER
+// =====================================================
+
+function cleanupViewer() {
+
+    if (cleanupStarted) {
+        return;
+    }
+
+
+    cleanupStarted = true;
+
+
+    if (peerConnection) {
+
+        try {
+
+            peerConnection.close();
+
+        } catch (error) {
+
+            console.error(
+                "Connection cleanup error:",
+                error
+            );
+
+        }
+
+
+        peerConnection = null;
+
+    }
+
+
+    if (viewerAnswerRef) {
+
+        deleteDoc(viewerAnswerRef)
+            .catch(error => {
+
+                console.error(
+                    "Viewer document cleanup error:",
+                    error
+                );
+
+            });
+
+    }
+
+
+    if (viewerOfferRef) {
+
+        deleteDoc(viewerOfferRef)
+            .catch(error => {
+
+                console.error(
+                    "Viewer offer cleanup error:",
+                    error
+                );
+
+            });
+
+    }
+
+}
+
+
+// =====================================================
+// PAGE CLEANUP
 // =====================================================
 
 window.addEventListener(
     "beforeunload",
-    () => {
+    cleanupViewer
+);
 
-        if (peerConnection) {
 
-            peerConnection.close();
-
-            peerConnection = null;
-
-        }
-
-        if (viewerAnswerRef) {
-
-            deleteDoc(viewerAnswerRef)
-                .catch(error => {
-
-                    console.error(
-                        "Viewer document cleanup error:",
-                        error
-                    );
-
-                });
-
-        }
-
-    }
+window.addEventListener(
+    "pagehide",
+    cleanupViewer
 );
