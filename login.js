@@ -64,17 +64,17 @@ try {
     // EMAIL VERIFICATION
     // ========================================
 
-    if (!user.emailVerified) {
+  
+if (!user.emailVerified) {
 
-        alert(
-            "Please verify your email before logging in."
-        );
+    alert(
+        "Your email is not verified. You will be redirected to verify your email."
+    );
 
-        await signOut(auth);
+    window.location.href = "verify-email.html";
 
-        return;
-    }
-
+    return;
+}
 
     // ========================================
     // DEFAULT PROFILE INFORMATION
