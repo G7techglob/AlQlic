@@ -1,4 +1,11 @@
 
+import { db } from "./firebase.js";
+
+import {
+    doc,
+    getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 const gifts = [
     {
         name: "Tiny Heart",
