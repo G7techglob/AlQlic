@@ -202,6 +202,8 @@ async function loadStream() {
     const stream =
         streamSnap.data();
 
+    creatorId = stream.hostId || null;
+
 
     if (
         stream.status !== "live"
@@ -819,6 +821,24 @@ likeBtn.addEventListener(
     }
 );
 
+
+// =====================================================
+// SEND GIFT
+// =====================================================
+
+giftBtn.addEventListener("click", () => {
+
+    if (!creatorId) {
+        alert("Creator information is unavailable.");
+        return;
+    }
+
+    const giftURL =
+        `gifts.html?creatorId=${encodeURIComponent(creatorId)}&streamId=${encodeURIComponent(streamId)}`;
+
+    window.location.href = giftURL;
+
+});
 
 // =====================================================
 // SHARE
