@@ -60,9 +60,11 @@ const sendChatBtn =
 const likeBtn =
     document.getElementById("likeBtn");
 
+const giftBtn =
+    document.getElementById("giftBtn");
+
 const shareBtn =
     document.getElementById("shareBtn");
-
 
 // =====================================================
 // VARIABLES
