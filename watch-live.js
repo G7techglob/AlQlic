@@ -593,9 +593,8 @@ function listenForChat() {
             db,
             "liveStreams",
             streamId,
-            "comments"
+            "messages"
         );
-
 
     onSnapshot(
         commentsRef,
@@ -719,7 +718,7 @@ async function sendChat() {
                 db,
                 "liveStreams",
                 streamId,
-                "comments"
+                "messages"
             ),
 
             {
