@@ -223,7 +223,7 @@ function setupPasswordToggle(
         passwordInput.type = "password";
 
         // Slashed eye when password is hidden
-        toggleButton.textContent = "👁̸";
+        toggleButton.textContent = "👁";
 
         toggleButton.setAttribute(
           "aria-label",
