@@ -85,3 +85,29 @@ window.location.href = "verify-email.html";
     alert(error.message);
   }
 });
+
+// ==========================================
+// SHOW / HIDE PASSWORD
+// ==========================================
+
+const registerPassword =
+    document.getElementById("registerPassword");
+
+const togglePassword =
+    document.getElementById("togglePassword");
+
+togglePassword.addEventListener("click", () => {
+
+    if (registerPassword.type === "password") {
+
+        registerPassword.type = "text";
+        togglePassword.textContent = "Hide";
+
+    } else {
+
+        registerPassword.type = "password";
+        togglePassword.textContent = "Show";
+
+    }
+
+});
