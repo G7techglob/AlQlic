@@ -1,0 +1,252 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+}
+
+
+/* =====================================
+   HEADER
+===================================== */
+
+.support-header {
+    background: white;
+    padding: 20px 30px;
+    border-bottom: 1px solid #ddd;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.support-header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.support-header p {
+    margin: 5px 0 0;
+    color: #666;
+}
+
+
+/* =====================================
+   BACK BUTTON
+===================================== */
+
+.back-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #ff4d6d;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.back-btn:hover {
+    background: #e63e5c;
+}
+
+
+/* =====================================
+   MAIN CONTAINER
+===================================== */
+
+.support-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 25px;
+}
+
+
+/* =====================================
+   SUPPORT SUMMARY
+===================================== */
+
+.support-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card span {
+    display: block;
+    font-size: 28px;
+    font-weight: bold;
+    color: #ff4d6d;
+}
+
+.summary-card p {
+    margin: 8px 0 0;
+    color: #666;
+}
+
+
+/* =====================================
+   REQUEST SECTION
+===================================== */
+
+.requests-section {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+#statusFilter {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: white;
+}
+
+
+/* =====================================
+   SUPPORT REQUEST CARDS
+===================================== */
+
+.requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.support-request {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 18px;
+}
+
+.request-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.request-name {
+    margin: 0;
+    font-size: 18px;
+}
+
+.request-email {
+    margin: 5px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.request-subject {
+    margin: 15px 0 8px;
+    font-weight: bold;
+}
+
+.request-message {
+    margin: 0;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.request-footer {
+    margin-top: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.request-date {
+    color: #777;
+    font-size: 13px;
+}
+
+.status-select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: white;
+}
+
+
+/* =====================================
+   MESSAGES
+===================================== */
+
+.loading-message,
+.empty-message,
+.error-message {
+    text-align: center;
+    color: #666;
+    padding: 30px;
+}
+
+
+/* =====================================
+   MOBILE RESPONSIVE
+===================================== */
+
+@media (max-width: 700px) {
+
+    .support-header {
+        padding: 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .support-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .support-container {
+        padding: 15px;
+    }
+
+    .requests-section {
+        padding: 18px;
+    }
+
+    .section-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    #statusFilter {
+        width: 100%;
+    }
+
+    .request-top,
+    .request-footer {
+        flex-direction: column;
+    }
+
+    .status-select {
+        width: 100%;
+    }
+}
