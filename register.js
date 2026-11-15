@@ -100,8 +100,12 @@ togglePassword.addEventListener("click", () => {
 
     if (registerPassword.type === "password") {
 
+        // Show password
         registerPassword.type = "text";
-        togglePassword.textContent = "🙈";
+
+        // Change eye to X
+        togglePassword.textContent = "×";
+
         togglePassword.setAttribute(
             "aria-label",
             "Hide password"
@@ -109,8 +113,12 @@ togglePassword.addEventListener("click", () => {
 
     } else {
 
+        // Hide password
         registerPassword.type = "password";
+
+        // Change X back to eye
         togglePassword.textContent = "👁";
+
         togglePassword.setAttribute(
             "aria-label",
             "Show password"
