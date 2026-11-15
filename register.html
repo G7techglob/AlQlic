@@ -11,13 +11,27 @@
 <body>
 
 <div class="box">
-    <h2>Create Your MatchConnect Account</h2>
+    <h2>Create alqlic Account</h2>
 
     <input type="text" id="registerName" placeholder="Full Name or Username">
 
 <input type="email" id="registerEmail" placeholder="Email">
 
-<input type="password" id="registerPassword" placeholder="Password">
+<div class="password-container">
+    <input
+        type="password"
+        id="registerPassword"
+        placeholder="Password"
+    >
+
+    <button
+        type="button"
+        id="togglePassword"
+        class="toggle-password"
+    >
+        Show
+    </button>
+</div>
     <button id="registerBtn">Create Account</button>
 
     <p>
