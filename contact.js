@@ -1,52 +1,238 @@
-
 /* =====================================
-   ALQLIC CONTACT FORM
+   ALQLIC CONTACT & SUPPORT FORM
 ===================================== */
 
-document.addEventListener("DOMContentLoaded", function () {
-    const contactForm = document.getElementById("contactForm");
-    const formMessage = document.getElementById("formMessage");
+import { auth, db } from "./firebase.js";
 
-    if (!contactForm) {
-        return;
-    }
+import {
+    collection,
+    addDoc,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    contactForm.addEventListener("submit", function (event) {
-        event.preventDefault();
 
-        const name = contactForm.elements["name"].value.trim();
-        const email = contactForm.elements["email"].value.trim();
-        const subject = contactForm.elements["subject"].value.trim();
-        const message = contactForm.elements["message"].value.trim();
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-        if (!name || !email || !subject || !message) {
-            showMessage("Please complete all fields.", "error");
+        // =====================================
+        // GET PAGE ELEMENTS
+        // =====================================
+
+        const contactForm =
+            document.getElementById("contactForm");
+
+        const formMessage =
+            document.getElementById("formMessage");
+
+        const backBtn =
+            document.getElementById("backBtn");
+
+
+        // =====================================
+        // BACK BUTTON
+        // =====================================
+
+        if (backBtn) {
+
+            backBtn.addEventListener(
+                "click",
+                () => {
+
+                    window.history.back();
+
+                }
+            );
+
+        }
+
+
+        // Stop if the form does not exist
+        if (!contactForm) {
             return;
         }
 
-        if (!contactForm.elements["email"].checkValidity()) {
-            showMessage("Please enter a valid email address.", "error");
-            return;
-        }
 
-        /*
-         * Email delivery will be connected in the next step.
-         * This code validates the form but does not send an email.
-         */
+        // =====================================
+        // SUBMIT SUPPORT REQUEST
+        // =====================================
 
-        showMessage(
-            "Your message has been checked, but email delivery is not connected yet. Please email officialalqlic@gmail.com directly for now.",
-            "info"
+        contactForm.addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+
+                const name =
+                    contactForm.elements["name"]
+                        .value
+                        .trim();
+
+                const email =
+                    contactForm.elements["email"]
+                        .value
+                        .trim();
+
+                const subject =
+                    contactForm.elements["subject"]
+                        .value
+                        .trim();
+
+                const message =
+                    contactForm.elements["message"]
+                        .value
+                        .trim();
+
+
+                // Validate all fields
+                if (
+                    !name ||
+                    !email ||
+                    !subject ||
+                    !message
+                ) {
+
+                    showMessage(
+                        "Please complete all fields.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                // Validate email
+                if (
+                    !contactForm
+                        .elements["email"]
+                        .checkValidity()
+                ) {
+
+                    showMessage(
+                        "Please enter a valid email address.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                try {
+
+                    // Disable button while sending
+                    const submitButton =
+                        contactForm.querySelector(
+                            'button[type="submit"]'
+                        );
+
+                    submitButton.disabled = true;
+
+                    submitButton.textContent =
+                        "Sending...";
+
+
+                    // =====================================
+                    // SAVE SUPPORT REQUEST TO FIRESTORE
+                    // =====================================
+
+                    await addDoc(
+                        collection(
+                            db,
+                            "supportRequests"
+                        ),
+                        {
+
+                            name: name,
+
+                            email: email,
+
+                            subject: subject,
+
+                            message: message,
+
+                            // Logged-in user ID, if available
+                            userId:
+                                auth.currentUser
+                                    ? auth.currentUser.uid
+                                    : null,
+
+                            status: "open",
+
+                            createdAt:
+                                serverTimestamp()
+
+                        }
+                    );
+
+
+                    // Success message
+                    showMessage(
+                        "Your support request has been sent successfully. The AlQlic support team will review it.",
+                        "success"
+                    );
+
+
+                    // Clear the form
+                    contactForm.reset();
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Support request error:",
+                        error
+                    );
+
+                    showMessage(
+                        "Unable to send your request. Please try again.",
+                        "error"
+                    );
+
+                } finally {
+
+                    // Re-enable button
+                    const submitButton =
+                        contactForm.querySelector(
+                            'button[type="submit"]'
+                        );
+
+                    submitButton.disabled = false;
+
+                    submitButton.textContent =
+                        "Send Message";
+
+                }
+
+            }
         );
-    });
 
-    function showMessage(message, type) {
-        if (!formMessage) {
-            alert(message);
-            return;
+
+        // =====================================
+        // SHOW FORM MESSAGE
+        // =====================================
+
+        function showMessage(
+            message,
+            type
+        ) {
+
+            if (!formMessage) {
+
+                alert(message);
+                return;
+
+            }
+
+            formMessage.textContent =
+                message;
+
+            formMessage.className =
+                type;
+
         }
 
-        formMessage.textContent = message;
-        formMessage.className = type;
     }
-});
+);
