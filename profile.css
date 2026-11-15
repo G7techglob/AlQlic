@@ -448,15 +448,17 @@ hr {
     margin-right:0;
 }
 
-.post-container{
-    padding-left:0;
-    padding-right:0;
 
-    /* Post demarcation line */
-    border-bottom:1px solid #dbdbdb;
-    padding-bottom:5px;
-    margin-bottom:0;
+.post-container {
+    padding-left: 0;
+    padding-right: 0;
+
+    /* Space and separation between profile posts */
+    border-bottom: 1px solid #dbdbdb;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
 }
+
 /* Clean post action buttons */
 .post-actions button{
     background:transparent !important;
