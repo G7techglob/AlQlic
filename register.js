@@ -179,78 +179,71 @@ document
 
   });
 
-
 // ==========================================
 // SHOW / HIDE PASSWORDS
 // ==========================================
 
 function setupPasswordToggle(
-  inputId,
-  buttonId,
-  showLabel,
-  hideLabel
+    inputId,
+    buttonId,
+    showLabel,
+    hideLabel
 ) {
 
-  const passwordInput =
-    document.getElementById(inputId);
+    const passwordInput =
+        document.getElementById(inputId);
 
-  const toggleButton =
-    document.getElementById(buttonId);
+    const toggleButton =
+        document.getElementById(buttonId);
 
+    toggleButton.addEventListener("click", () => {
 
-  toggleButton.addEventListener(
-    "click",
-    () => {
+        if (passwordInput.type === "password") {
 
-      if (
-        passwordInput.type === "password"
-      ) {
+            // Password is hidden — show it
+            passwordInput.type = "text";
 
-        // Show password
-        passwordInput.type = "text";
+            // Change eye to X
+            toggleButton.textContent = "×";
 
-        // Normal eye when password is visible
-        toggleButton.textContent = "👁";
+            toggleButton.setAttribute(
+                "aria-label",
+                hideLabel
+            );
 
-        toggleButton.setAttribute(
-          "aria-label",
-          hideLabel
-        );
+        } else {
 
-      } else {
+            // Password is visible — hide it
+            passwordInput.type = "password";
 
-        // Hide password
-        passwordInput.type = "password";
+            // Change X back to eye
+            toggleButton.textContent = "👁";
 
-        // Slashed eye when password is hidden
-        toggleButton.textContent = "👁";
+            toggleButton.setAttribute(
+                "aria-label",
+                showLabel
+            );
 
-        toggleButton.setAttribute(
-          "aria-label",
-          showLabel
-        );
+        }
 
-      }
-
-    }
-  );
+    });
 
 }
 
 
-// Main password field
+// Password field
 setupPasswordToggle(
-  "registerPassword",
-  "togglePassword",
-  "Show password",
-  "Hide password"
+    "registerPassword",
+    "togglePassword",
+    "Show password",
+    "Hide password"
 );
 
 
-// Confirm password field
+// Confirm Password field
 setupPasswordToggle(
-  "confirmPassword",
-  "toggleConfirmPassword",
-  "Show confirm password",
-  "Hide confirm password"
+    "confirmPassword",
+    "toggleConfirmPassword",
+    "Show confirm password",
+    "Hide confirm password"
 );
