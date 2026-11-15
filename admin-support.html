@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AlQlic Admin Support</title>
+
+    <link
+        rel="stylesheet"
+        href="admin-support.css"
+    >
+
+</head>
+
+<body>
+
+    <header class="support-header">
+
+        <div>
+
+            <h1>AlQlic Customer Support</h1>
+
+            <p>
+                Manage and respond to user support requests.
+            </p>
+
+        </div>
+
+        <button
+            id="backBtn"
+            type="button"
+            class="back-btn"
+        >
+            ← Back
+        </button>
+
+    </header>
+
+
+    <main class="support-container">
+
+        <!-- SUPPORT REQUEST SUMMARY -->
+
+        <section class="support-summary">
+
+            <div class="summary-card">
+                <span id="totalRequests">0</span>
+                <p>Total Requests</p>
+            </div>
+
+            <div class="summary-card">
+                <span id="openRequests">0</span>
+                <p>Open</p>
+            </div>
+
+            <div class="summary-card">
+                <span id="progressRequests">0</span>
+                <p>In Progress</p>
+            </div>
+
+            <div class="summary-card">
+                <span id="resolvedRequests">0</span>
+                <p>Resolved</p>
+            </div>
+
+        </section>
+
+
+        <!-- SUPPORT REQUESTS -->
+
+        <section class="requests-section">
+
+            <div class="section-header">
+
+                <h2>Customer Requests</h2>
+
+                <select
+                    id="statusFilter"
+                    aria-label="Filter support requests"
+                >
+                    <option value="all">
+                        All Requests
+                    </option>
+
+                    <option value="open">
+                        Open
+                    </option>
+
+                    <option value="in-progress">
+                        In Progress
+                    </option>
+
+                    <option value="resolved">
+                        Resolved
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- REQUEST LIST -->
+
+            <div
+                id="requestsList"
+                class="requests-list"
+            >
+
+                <p class="loading-message">
+                    Loading customer requests...
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script
+        type="module"
+        src="admin-support.js"
+    ></script>
+
+</body>
+
+</html>
