@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>Register - AlQlic</title>
 
 <link rel="stylesheet" href="register.css">
+
 </head>
 
 <body>
@@ -27,6 +34,7 @@
         placeholder="Email"
     >
 
+    <!-- Password -->
     <div class="password-container">
 
         <input
@@ -41,10 +49,32 @@
             class="toggle-password"
             aria-label="Show password"
         >
-            👁
+            👁̸
         </button>
 
     </div>
+
+
+    <!-- Confirm Password -->
+    <div class="password-container">
+
+        <input
+            type="password"
+            id="confirmPassword"
+            placeholder="Confirm Password"
+        >
+
+        <button
+            type="button"
+            id="toggleConfirmPassword"
+            class="toggle-password"
+            aria-label="Show confirm password"
+        >
+            👁̸
+        </button>
+
+    </div>
+
 
     <button id="registerBtn">
         Create Account
