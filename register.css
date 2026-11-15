@@ -41,4 +41,27 @@ button:hover{
 a{
     color:#ff4d6d;
     text-decoration:none;
+} 
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 70px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #ff4d6d;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 5px;
 }
