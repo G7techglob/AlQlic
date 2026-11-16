@@ -11,7 +11,8 @@ import {
     orderBy,
     onSnapshot,
     doc,
-    updateDoc
+    updateDoc,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 
@@ -61,7 +62,6 @@ onAuthStateChanged(auth, (user) => {
         return;
     }
 
-    // Only the authorised administrator can continue.
     if (user.uid !== ADMIN_UID) {
         alert("Access denied. Administrator permission required.");
         window.location.replace("index.html");
@@ -183,6 +183,15 @@ function displayRequests() {
             formattedDate = request.createdAt.toDate().toLocaleString();
         }
 
+        let replyDate = "";
+
+        if (
+            request.repliedAt &&
+            typeof request.repliedAt.toDate === "function"
+        ) {
+            replyDate = request.repliedAt.toDate().toLocaleString();
+        }
+
         requestCard.innerHTML = `
             <div class="request-top">
                 <div>
@@ -232,9 +241,52 @@ function displayRequests() {
                 </select>
 
             </div>
+
+            <div class="admin-reply-section">
+
+                <h4>Admin Reply</h4>
+
+                ${
+                    request.adminReply
+                    ? `
+                        <div class="previous-reply">
+                            <p>${escapeHTML(request.adminReply)}</p>
+                            <small>
+                                Replied: ${escapeHTML(replyDate)}
+                            </small>
+                        </div>
+                    `
+                    : `
+                        <p class="no-reply">
+                            No reply sent yet.
+                        </p>
+                    `
+                }
+
+                <textarea
+                    class="admin-reply-input"
+                    placeholder="Type your reply to this customer..."
+                    rows="4"
+                >${escapeHTML(request.adminReply || "")}</textarea>
+
+                <button
+                    type="button"
+                    class="send-reply-btn"
+                >
+                    Send Reply
+                </button>
+
+                <p class="reply-feedback"></p>
+
+            </div>
         `;
 
         requestsList.appendChild(requestCard);
+
+
+        // ==================================
+        // UPDATE REQUEST STATUS
+        // ==================================
 
         const statusSelect = requestCard.querySelector(".status-select");
 
@@ -253,8 +305,6 @@ function displayRequests() {
                     }
                 );
 
-                console.log("Support request status updated.");
-
             } catch (error) {
 
                 console.error("Error updating request status:", error);
@@ -266,6 +316,58 @@ function displayRequests() {
             } finally {
 
                 statusSelect.disabled = false;
+
+            }
+
+        });
+
+
+        // ==================================
+        // SEND ADMIN REPLY
+        // ==================================
+
+        const replyInput = requestCard.querySelector(".admin-reply-input");
+        const sendReplyBtn = requestCard.querySelector(".send-reply-btn");
+        const replyFeedback = requestCard.querySelector(".reply-feedback");
+
+        sendReplyBtn.addEventListener("click", async () => {
+
+            const replyText = replyInput.value.trim();
+
+            if (!replyText) {
+                replyFeedback.textContent = "Please type a reply first.";
+                return;
+            }
+
+            sendReplyBtn.disabled = true;
+            sendReplyBtn.textContent = "Sending...";
+
+            try {
+
+                await updateDoc(
+                    doc(db, "supportRequests", request.id),
+                    {
+                        adminReply: replyText,
+                        repliedAt: serverTimestamp()
+                    }
+                );
+
+                replyFeedback.textContent = "Reply sent successfully.";
+                replyFeedback.style.color = "green";
+
+            } catch (error) {
+
+                console.error("Error sending admin reply:", error);
+
+                replyFeedback.textContent =
+                    "Unable to send reply. Please try again.";
+
+                replyFeedback.style.color = "red";
+
+            } finally {
+
+                sendReplyBtn.disabled = false;
+                sendReplyBtn.textContent = "Send Reply";
 
             }
 
