@@ -119,6 +119,18 @@ document.addEventListener(
 
                 }
 
+               // Require users to be logged in
+if (!auth.currentUser) {
+
+    showMessage(
+        "Please log in to your AlQlic account before contacting support.",
+        "error"
+    );
+
+    return;
+
+}
+
 
                 try {
 
