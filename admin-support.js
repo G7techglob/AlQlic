@@ -1,4 +1,8 @@
 
+/* =====================================
+   ALQLIC ADMIN CUSTOMER SUPPORT INBOX
+===================================== */
+
 import { auth, db } from "./firebase.js";
 
 import {
@@ -12,6 +16,7 @@ import {
     onSnapshot,
     doc,
     updateDoc,
+    addDoc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -38,6 +43,8 @@ const resolvedRequests = document.getElementById("resolvedRequests");
 const backBtn = document.getElementById("backBtn");
 
 let allRequests = [];
+
+let messageUnsubscribers = [];
 
 
 // ==========================================
@@ -76,6 +83,21 @@ onAuthStateChanged(auth, (user) => {
 
 
 // ==========================================
+// STOP OLD MESSAGE LISTENERS
+// ==========================================
+
+function stopMessageListeners() {
+
+    messageUnsubscribers.forEach((unsubscribe) => {
+        unsubscribe();
+    });
+
+    messageUnsubscribers = [];
+
+}
+
+
+// ==========================================
 // LOAD SUPPORT REQUESTS
 // ==========================================
 
@@ -103,14 +125,13 @@ function loadSupportRequests() {
 
         (error) => {
 
-            console.error("Error loading support requests:", error);
+            console.error(
+                "Error loading support requests:",
+                error
+            );
 
-            requestsList.innerHTML = `
-                <p class="error-message">
-                    Unable to load customer requests.
-                    Please check your administrator permissions.
-                </p>
-            `;
+            requestsList.textContent =
+                "Unable to load customer requests. Check administrator permissions.";
 
         }
     );
@@ -147,6 +168,8 @@ function updateSummary() {
 
 function displayRequests() {
 
+    stopMessageListeners();
+
     const selectedStatus = statusFilter.value;
 
     const filteredRequests = selectedStatus === "all"
@@ -155,140 +178,101 @@ function displayRequests() {
             request => request.status === selectedStatus
         );
 
+    requestsList.replaceChildren();
+
     if (filteredRequests.length === 0) {
 
-        requestsList.innerHTML = `
-            <p class="empty-message">
-                No customer requests found.
-            </p>
-        `;
+        const empty = document.createElement("p");
+
+        empty.textContent = "No customer requests found.";
+
+        requestsList.appendChild(empty);
 
         return;
     }
 
-    requestsList.innerHTML = "";
-
     filteredRequests.forEach((request) => {
 
-        const requestCard = document.createElement("div");
+        const card = document.createElement("div");
 
-        requestCard.className = "support-request";
+        card.className = "support-request";
 
-        let formattedDate = "Date unavailable";
 
-        if (
+        // ==================================
+        // CUSTOMER DETAILS
+        // ==================================
+
+        const name = document.createElement("h3");
+
+        name.className = "request-name";
+
+        name.textContent =
+            request.name || "Unknown User";
+
+
+        const email = document.createElement("p");
+
+        email.className = "request-email";
+
+        email.textContent =
+            request.email || "No email provided";
+
+
+        const subject = document.createElement("p");
+
+        subject.className = "request-subject";
+
+        subject.textContent =
+            "Subject: " + (request.subject || "No subject");
+
+
+        const originalMessage = document.createElement("p");
+
+        originalMessage.className = "request-message";
+
+        originalMessage.textContent =
+            request.message || "No message";
+
+
+        const date = document.createElement("p");
+
+        date.className = "request-date";
+
+        date.textContent =
             request.createdAt &&
             typeof request.createdAt.toDate === "function"
-        ) {
-            formattedDate = request.createdAt.toDate().toLocaleString();
-        }
-
-        let replyDate = "";
-
-        if (
-            request.repliedAt &&
-            typeof request.repliedAt.toDate === "function"
-        ) {
-            replyDate = request.repliedAt.toDate().toLocaleString();
-        }
-
-        requestCard.innerHTML = `
-            <div class="request-top">
-                <div>
-
-                    <h3 class="request-name">
-                        ${escapeHTML(request.name || "Unknown User")}
-                    </h3>
-
-                    <p class="request-email">
-                        ${escapeHTML(request.email || "No email provided")}
-                    </p>
-
-                </div>
-            </div>
-
-            <p class="request-subject">
-                Subject: ${escapeHTML(request.subject || "No subject")}
-            </p>
-
-            <p class="request-message">
-                ${escapeHTML(request.message || "No message")}
-            </p>
-
-            <div class="request-footer">
-
-                <span class="request-date">
-                    ${escapeHTML(formattedDate)}
-                </span>
-
-                <select class="status-select">
-
-                    <option value="open"
-                        ${request.status === "open" ? "selected" : ""}>
-                        Open
-                    </option>
-
-                    <option value="in-progress"
-                        ${request.status === "in-progress" ? "selected" : ""}>
-                        In Progress
-                    </option>
-
-                    <option value="resolved"
-                        ${request.status === "resolved" ? "selected" : ""}>
-                        Resolved
-                    </option>
-
-                </select>
-
-            </div>
-
-            <div class="admin-reply-section">
-
-                <h4>Admin Reply</h4>
-
-                ${
-                    request.adminReply
-                    ? `
-                        <div class="previous-reply">
-                            <p>${escapeHTML(request.adminReply)}</p>
-                            <small>
-                                Replied: ${escapeHTML(replyDate)}
-                            </small>
-                        </div>
-                    `
-                    : `
-                        <p class="no-reply">
-                            No reply sent yet.
-                        </p>
-                    `
-                }
-
-                <textarea
-                    class="admin-reply-input"
-                    placeholder="Type your reply to this customer..."
-                    rows="4"
-                >${escapeHTML(request.adminReply || "")}</textarea>
-
-                <button
-                    type="button"
-                    class="send-reply-btn"
-                >
-                    Send Reply
-                </button>
-
-                <p class="reply-feedback"></p>
-
-            </div>
-        `;
-
-        requestsList.appendChild(requestCard);
+                ? request.createdAt.toDate().toLocaleString()
+                : "Date unavailable";
 
 
         // ==================================
-        // UPDATE REQUEST STATUS
+        // STATUS SELECT
         // ==================================
 
-        const statusSelect = requestCard.querySelector(".status-select");
+        const statusSelect = document.createElement("select");
+
+        statusSelect.className = "status-select";
+
+        const statuses = [
+            ["open", "Open"],
+            ["in-progress", "In Progress"],
+            ["resolved", "Resolved"]
+        ];
+
+        statuses.forEach(([value, label]) => {
+
+            const option = document.createElement("option");
+
+            option.value = value;
+
+            option.textContent = label;
+
+            statusSelect.appendChild(option);
+
+        });
+
+        statusSelect.value = request.status || "open";
+
 
         statusSelect.addEventListener("change", async () => {
 
@@ -307,11 +291,14 @@ function displayRequests() {
 
             } catch (error) {
 
-                console.error("Error updating request status:", error);
+                console.error(
+                    "Error updating request status:",
+                    error
+                );
 
                 alert("Unable to update request status.");
 
-                statusSelect.value = request.status;
+                statusSelect.value = request.status || "open";
 
             } finally {
 
@@ -323,57 +310,289 @@ function displayRequests() {
 
 
         // ==================================
-        // SEND ADMIN REPLY
+        // CONVERSATION SECTION
         // ==================================
 
-        const replyInput = requestCard.querySelector(".admin-reply-input");
-        const sendReplyBtn = requestCard.querySelector(".send-reply-btn");
-        const replyFeedback = requestCard.querySelector(".reply-feedback");
+        const chatSection = document.createElement("div");
 
-        sendReplyBtn.addEventListener("click", async () => {
+        chatSection.className = "admin-chat-section";
 
-            const replyText = replyInput.value.trim();
 
-            if (!replyText) {
-                replyFeedback.textContent = "Please type a reply first.";
+        const chatHeading = document.createElement("h4");
+
+        chatHeading.textContent =
+            "Conversation with Customer";
+
+
+        const messagesContainer =
+            document.createElement("div");
+
+        messagesContainer.className =
+            "admin-chat-messages";
+
+
+        // ==================================
+        // DISPLAY OLD ADMIN REPLY
+        // ==================================
+
+        if (request.adminReply) {
+
+            const oldReply = createMessageBubble(
+                request.adminReply,
+                "admin",
+                request.repliedAt
+            );
+
+            messagesContainer.appendChild(oldReply);
+
+        }
+
+
+        // ==================================
+        // MESSAGE INPUT
+        // ==================================
+
+        const messageInput =
+            document.createElement("textarea");
+
+        messageInput.className = "admin-chat-input";
+
+        messageInput.placeholder =
+            "Write a message to this customer...";
+
+        messageInput.rows = 3;
+
+
+        const sendButton = document.createElement("button");
+
+        sendButton.type = "button";
+
+        sendButton.className = "admin-chat-send";
+
+        sendButton.textContent = "Send Message";
+
+
+        const feedback = document.createElement("p");
+
+        feedback.className = "admin-chat-feedback";
+
+
+        chatSection.append(
+            chatHeading,
+            messagesContainer,
+            messageInput,
+            sendButton,
+            feedback
+        );
+
+
+        // ==================================
+        // ADD EVERYTHING TO CARD
+        // ==================================
+
+        card.append(
+            name,
+            email,
+            subject,
+            originalMessage,
+            date,
+            statusSelect,
+            chatSection
+        );
+
+        requestsList.appendChild(card);
+
+
+        // ==================================
+        // LOAD LIVE CONVERSATION
+        // ==================================
+
+        const messagesQuery = query(
+            collection(
+                db,
+                "supportRequests",
+                request.id,
+                "messages"
+            ),
+            orderBy("createdAt", "asc")
+        );
+
+
+        const unsubscribe = onSnapshot(
+            messagesQuery,
+
+            (snapshot) => {
+
+                messagesContainer.replaceChildren();
+
+                // Preserve replies sent before the chat upgrade.
+                if (request.adminReply) {
+
+                    messagesContainer.appendChild(
+                        createMessageBubble(
+                            request.adminReply,
+                            "admin",
+                            request.repliedAt
+                        )
+                    );
+
+                }
+
+                snapshot.forEach((messageDoc) => {
+
+                    const message = messageDoc.data();
+
+                    messagesContainer.appendChild(
+                        createMessageBubble(
+                            message.message,
+                            message.senderRole,
+                            message.createdAt
+                        )
+                    );
+
+                });
+
+                messagesContainer.scrollTop =
+                    messagesContainer.scrollHeight;
+
+            },
+
+            (error) => {
+
+                console.error(
+                    "Error loading conversation:",
+                    error
+                );
+
+                feedback.textContent =
+                    "Unable to load conversation messages.";
+
+            }
+        );
+
+        messageUnsubscribers.push(unsubscribe);
+
+
+        // ==================================
+        // SEND ADMIN MESSAGE
+        // ==================================
+
+        sendButton.addEventListener("click", async () => {
+
+            const messageText = messageInput.value.trim();
+
+            if (!messageText) {
+
+                feedback.textContent =
+                    "Please type a message first.";
+
                 return;
+
             }
 
-            sendReplyBtn.disabled = true;
-            sendReplyBtn.textContent = "Sending...";
+            if (messageText.length > 5000) {
+
+                feedback.textContent =
+                    "Message cannot exceed 5000 characters.";
+
+                return;
+
+            }
+
+            sendButton.disabled = true;
+
+            sendButton.textContent = "Sending...";
+
+            feedback.textContent = "";
 
             try {
 
-                await updateDoc(
-                    doc(db, "supportRequests", request.id),
+                await addDoc(
+                    collection(
+                        db,
+                        "supportRequests",
+                        request.id,
+                        "messages"
+                    ),
                     {
-                        adminReply: replyText,
-                        repliedAt: serverTimestamp()
+                        message: messageText,
+                        senderId: auth.currentUser.uid,
+                        senderRole: "admin",
+                        createdAt: serverTimestamp()
                     }
                 );
 
-                replyFeedback.textContent = "Reply sent successfully.";
-                replyFeedback.style.color = "green";
+                messageInput.value = "";
+
+                feedback.textContent =
+                    "Message sent successfully.";
 
             } catch (error) {
 
-                console.error("Error sending admin reply:", error);
+                console.error(
+                    "Error sending admin message:",
+                    error
+                );
 
-                replyFeedback.textContent =
-                    "Unable to send reply. Please try again.";
-
-                replyFeedback.style.color = "red";
+                feedback.textContent =
+                    "Unable to send message. Please try again.";
 
             } finally {
 
-                sendReplyBtn.disabled = false;
-                sendReplyBtn.textContent = "Send Reply";
+                sendButton.disabled = false;
+
+                sendButton.textContent = "Send Message";
 
             }
 
         });
 
     });
+
+}
+
+
+// ==========================================
+// CREATE CHAT MESSAGE
+// ==========================================
+
+function createMessageBubble(message, senderRole, timestamp) {
+
+    const bubble = document.createElement("div");
+
+    bubble.className =
+        senderRole === "admin"
+            ? "admin-chat-message admin-message"
+            : "admin-chat-message customer-message";
+
+    const sender = document.createElement("strong");
+
+    sender.textContent =
+        senderRole === "admin"
+            ? "AlQlic Support"
+            : "Customer";
+
+    const text = document.createElement("p");
+
+    text.textContent = message || "";
+
+    bubble.append(sender, text);
+
+    if (
+        timestamp &&
+        typeof timestamp.toDate === "function"
+    ) {
+
+        const date = document.createElement("small");
+
+        date.textContent =
+            timestamp.toDate().toLocaleString();
+
+        bubble.appendChild(date);
+
+    }
+
+    return bubble;
 
 }
 
@@ -387,20 +606,5 @@ if (statusFilter) {
     statusFilter.addEventListener("change", () => {
         displayRequests();
     });
-
-}
-
-
-// ==========================================
-// PROTECT AGAINST HTML INJECTION
-// ==========================================
-
-function escapeHTML(value) {
-
-    const div = document.createElement("div");
-
-    div.textContent = String(value);
-
-    return div.innerHTML;
 
 }
