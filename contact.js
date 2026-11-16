@@ -166,10 +166,7 @@ if (!auth.currentUser) {
                             message: message,
 
                             // Logged-in user ID, if available
-                            userId:
-                                auth.currentUser
-                                    ? auth.currentUser.uid
-                                    : null,
+                           userId: auth.currentUser.uid,
 
                             status: "open",
 
