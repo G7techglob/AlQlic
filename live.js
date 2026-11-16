@@ -1,3 +1,4 @@
+
 import { auth, db, storage } from "./firebase.js";
 
 import {
@@ -25,55 +26,29 @@ console.log("✅ HOST Live JS loaded");
 // STREAM ID
 // =====================================================
 
-const params =
-    new URLSearchParams(window.location.search);
-
-const streamId =
-    params.get("streamId");
+const params = new URLSearchParams(window.location.search);
+const streamId = params.get("streamId");
 
 
 // =====================================================
 // ELEMENTS
 // =====================================================
 
-const localVideo =
-    document.getElementById("localVideo");
+const localVideo = document.getElementById("localVideo");
+const streamTitle = document.getElementById("streamTitle");
+const title = document.getElementById("title");
+const description = document.getElementById("description");
+const viewerCount = document.getElementById("viewerCount");
 
-const streamTitle =
-    document.getElementById("streamTitle");
+const micBtn = document.getElementById("micBtn");
+const cameraBtn = document.getElementById("cameraBtn");
+const switchCameraBtn = document.getElementById("switchCameraBtn");
+const endLiveBtn = document.getElementById("endLiveBtn");
+const backBtn = document.getElementById("backBtn");
 
-const title =
-    document.getElementById("title");
-
-const description =
-    document.getElementById("description");
-
-const viewerCount =
-    document.getElementById("viewerCount");
-
-const micBtn =
-    document.getElementById("micBtn");
-
-const cameraBtn =
-    document.getElementById("cameraBtn");
-
-const switchCameraBtn =
-    document.getElementById("switchCameraBtn");
-
-const endLiveBtn =
-    document.getElementById("endLiveBtn");
-
-const backBtn =
-    document.getElementById("backBtn");
-
-const chatInput =
-    document.getElementById("chatInput");
-
-const sendChatBtn =
-    document.getElementById("sendChatBtn");
-
-const chatMessages =
-    document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+const sendChatBtn = document.getElementById("sendChatBtn");
+const chatMessages = document.getElementById("chatMessages");
 
 
 // =====================================================
@@ -83,9 +58,7 @@ const chatMessages =
 let localStream = null;
 
 let usingFrontCamera = true;
-
 let microphoneEnabled = true;
-
 let cameraEnabled = true;
 
 let peerConnections = {};
@@ -93,32 +66,29 @@ let peerConnections = {};
 let isEnding = false;
 
 let mediaRecorder = null;
-
 let recordedChunks = [];
-
 let recordedVideoBlob = null;
 
 let shouldSaveVideo = false;
 
+let unsubscribeViewers = null;
+let unsubscribeOffers = null;
+let unsubscribeMessages = null;
+
 
 // =====================================================
-// WEBRTC CONFIG
+// WEBRTC CONFIGURATION
 // =====================================================
 
 const rtcConfig = {
-
     iceServers: [
-
         {
             urls: "stun:stun.l.google.com:19302"
         },
-
         {
             urls: "stun:stun1.l.google.com:19302"
         }
-
     ]
-
 };
 
 
@@ -127,52 +97,50 @@ const rtcConfig = {
 // =====================================================
 
 if (!streamId) {
-
     alert("Live stream not found.");
-
     window.location.replace("stream.html");
-
 }
 
 
 // =====================================================
-// AUTH
+// AUTHENTICATION
 // =====================================================
 
-auth.onAuthStateChanged(
-    async (user) => {
+auth.onAuthStateChanged(async user => {
 
-        if (!user) {
+    if (!user) {
+        alert("Please log in before managing your live.");
+        window.location.replace("login.html");
+        return;
+    }
 
-            alert(
-                "Please log in before managing your live."
-            );
+    try {
 
-            window.location.replace(
-                "stream.html"
-            );
-
-            return;
-        }
-
-
-        const loaded =
-            await loadHostStream(user);
-
+        const loaded = await loadHostStream(user);
 
         if (!loaded) {
             return;
         }
 
+        const cameraReady = await startCamera();
 
-        await startCamera();
+        if (!cameraReady) {
+            console.error("Host camera could not be started.");
+            return;
+        }
 
         startSignaling();
-
         startLiveChat();
 
+    } catch (error) {
+
+        console.error("Host startup error:", error);
+
+        alert("Unable to start the live stream. Check the browser console.");
+
     }
-);
+
+});
 
 
 // =====================================================
@@ -183,218 +151,286 @@ async function loadHostStream(user) {
 
     try {
 
-        const streamRef =
-            doc(
-                db,
-                "liveStreams",
-                streamId
-            );
+        const streamRef = doc(
+            db,
+            "liveStreams",
+            streamId
+        );
 
-
-        const streamSnap =
-            await getDoc(streamRef);
-
+        const streamSnap = await getDoc(streamRef);
 
         if (!streamSnap.exists()) {
 
-            alert(
-                "This live stream does not exist."
-            );
+            alert("This live stream does not exist.");
 
-            window.location.replace(
-                "stream.html"
-            );
+            window.location.replace("stream.html");
 
             return false;
         }
 
-
-        const stream =
-            streamSnap.data();
+        const stream = streamSnap.data();
 
 
-        // =================================================
-        // SECURITY CHECK
-        // =================================================
+        // HOST SECURITY CHECK
 
         if (stream.hostId !== user.uid) {
 
-            alert(
-                "Only the host can open this live screen."
-            );
+            alert("Only the host can open this live screen.");
 
             window.location.replace(
-                `watch-live.html?streamId=${encodeURIComponent(
-                    streamId
-                )}`
+                `watch-live.html?streamId=${encodeURIComponent(streamId)}`
             );
 
             return false;
         }
 
 
-        // =================================================
         // CHECK LIVE STATUS
-        // =================================================
 
         if (stream.status !== "live") {
 
-            alert(
-                "This live stream has already ended."
-            );
+            alert("This live stream has already ended.");
 
-            window.location.replace(
-                "stream.html"
-            );
+            window.location.replace("stream.html");
 
             return false;
         }
 
 
-        // =================================================
         // DISPLAY STREAM INFORMATION
-        // =================================================
 
-        const streamName =
-            stream.title ||
-            "MatchConnect Live";
-
+        const streamName = stream.title || "AlQlic Live";
 
         if (streamTitle) {
-            streamTitle.textContent =
-                streamName;
+            streamTitle.textContent = streamName;
         }
-
 
         if (title) {
-            title.textContent =
-                streamName;
+            title.textContent = streamName;
         }
-
 
         if (description) {
-
-            description.textContent =
-                stream.description || "";
-
+            description.textContent = stream.description || "";
         }
-
 
         if (viewerCount) {
-
-            viewerCount.textContent =
-                stream.viewerCount || 0;
-
+            viewerCount.textContent = stream.viewerCount || 0;
         }
 
 
-        // =================================================
-        // WATCH VIEWERS
-        // =================================================
+        // WATCH VIEWER COUNT
 
-onSnapshot(
-    collection(
-        db,
-        "liveStreams",
-        streamId,
-        "viewers"
-    ),
-    snapshot => {
+        unsubscribeViewers = onSnapshot(
+            collection(
+                db,
+                "liveStreams",
+                streamId,
+                "viewers"
+            ),
 
-        const count = snapshot.docs.filter(
-            viewerDoc => {
-                return viewerDoc.data().status === "connected";
-            }
-        ).length;
+            snapshot => {
 
-        if (viewerCount) {
-            viewerCount.textContent = count;
-        }
+                const count = snapshot.docs.filter(viewerDoc => {
+                    return viewerDoc.data().status === "connected";
+                }).length;
 
-        updateDoc(
-            streamRef,
-            {
-                viewerCount: count
-            }
-        ).catch(error => {
+                if (viewerCount) {
+                    viewerCount.textContent = count;
+                }
 
-            console.error(
-                "Viewer count update error:",
-                error
-            );
+                updateDoc(
+                    streamRef,
+                    {
+                        viewerCount: count
+                    }
+                ).catch(error => {
 
-        });
+                    console.error(
+                        "Viewer count update error:",
+                        error
+                    );
 
-    },
-    error => {
-
-        console.error(
-            "Viewer count listener error:",
-            error
-        );
-
-    }
-);
-
-
-// =====================================================
-// CAMERA
-// =====================================================
-
-async function startCamera() {
-
-    try {
-
-        if (localStream) {
-
-            localStream
-                .getTracks()
-                .forEach(track => {
-                    track.stop();
                 });
 
-        }
+            },
 
+            error => {
 
-        localStream =
-            await navigator.mediaDevices.getUserMedia({
+                console.error(
+                    "Viewer count listener error:",
+                    error
+                );
 
-                video: {
-
-                    facingMode:
-                        usingFrontCamera
-                            ? "user"
-                            : "environment"
-
-                },
-
-                audio: true
-
-            });
-
-
-        localVideo.srcObject =
-            localStream;
-
-
-        console.log(
-            "✅ Host camera and microphone ready"
+            }
         );
 
-
-        startLiveRecording();
-
+        return true;
 
     } catch (error) {
 
-        console.error(
-            "Camera error:",
-            error
-        );
+        console.error("Load host stream error:", error);
 
-        alert(
-            "Camera and microphone permission are required."
-        );
+        throw error;
+
+    }
+
+}
+
+
+// =====================================================
+// START CAMERA
+// =====================================================
+
+async function startCamera(preserveRecording = false) {
+
+    try {
+
+        if (!navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia) {
+
+            throw new Error(
+                "Camera access is unavailable. Use HTTPS and a supported browser."
+            );
+
+        }
+
+
+        // STOP PREVIOUS RECORDING WHEN SWITCHING CAMERA
+
+        if (
+            mediaRecorder &&
+            mediaRecorder.state !== "inactive"
+        ) {
+
+            await new Promise(resolve => {
+
+                mediaRecorder.addEventListener(
+                    "stop",
+                    resolve,
+                    { once: true }
+                );
+
+                mediaRecorder.stop();
+
+            });
+
+        }
+
+
+        // STOP PREVIOUS CAMERA
+
+        if (localStream) {
+
+            localStream.getTracks().forEach(track => {
+                track.stop();
+            });
+
+        }
+
+
+        // REQUEST CAMERA AND MICROPHONE
+
+        localStream = await navigator.mediaDevices.getUserMedia({
+
+            video: {
+                facingMode: {
+                    ideal: usingFrontCamera ? "user" : "environment"
+                },
+                width: {
+                    ideal: 1280
+                },
+                height: {
+                    ideal: 720
+                }
+            },
+
+            audio: true
+
+        });
+
+
+        // APPLY MIC AND CAMERA SETTINGS
+
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = cameraEnabled;
+        });
+
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = microphoneEnabled;
+        });
+
+
+        // DISPLAY HOST CAMERA
+
+        if (!localVideo) {
+
+            throw new Error(
+                "The video element with id 'localVideo' was not found in live.html."
+            );
+
+        }
+
+        localVideo.srcObject = localStream;
+
+        localVideo.muted = true;
+        localVideo.autoplay = true;
+        localVideo.playsInline = true;
+
+
+        try {
+
+            await localVideo.play();
+
+            console.log("✅ Host camera preview is playing.");
+
+        } catch (playError) {
+
+            console.error(
+                "Video playback error:",
+                playError
+            );
+
+        }
+
+
+        console.log("✅ Host camera and microphone ready.");
+
+        localStream.getTracks().forEach(track => {
+            console.log(
+                "Media track:",
+                track.kind,
+                track.label,
+                track.readyState,
+                track.enabled
+            );
+        });
+
+
+        // START RECORDING
+
+        startLiveRecording(preserveRecording);
+
+        return true;
+
+    } catch (error) {
+
+        console.error("Camera error:", error);
+
+        let message = "Unable to access your camera and microphone.";
+
+        if (error.name === "NotAllowedError") {
+            message = "Camera permission was denied. Allow camera and microphone access in your browser.";
+        } else if (error.name === "NotFoundError") {
+            message = "No camera or microphone was found on this device.";
+        } else if (error.name === "NotReadableError") {
+            message = "Your camera may already be in use by another application.";
+        } else if (error.name === "OverconstrainedError") {
+            message = "The selected camera is not available.";
+        }
+
+        alert(message);
+
+        return false;
 
     }
 
@@ -405,132 +441,103 @@ async function startCamera() {
 // START LIVE RECORDING
 // =====================================================
 
-function startLiveRecording() {
+function startLiveRecording(preserveChunks = false) {
 
     if (!localStream) {
         return;
     }
 
+    if (typeof MediaRecorder === "undefined") {
 
-    recordedChunks = [];
+        console.warn("MediaRecorder is not supported in this browser.");
 
-    recordedVideoBlob = null;
+        return;
+    }
+
+
+    if (!preserveChunks) {
+
+        recordedChunks = [];
+        recordedVideoBlob = null;
+
+    }
 
 
     let mimeType = "";
 
+    if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
 
-    if (
-        MediaRecorder.isTypeSupported(
-            "video/webm;codecs=vp9,opus"
-        )
-    ) {
+        mimeType = "video/webm;codecs=vp9,opus";
 
-        mimeType =
-            "video/webm;codecs=vp9,opus";
+    } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")) {
 
-    } else if (
-        MediaRecorder.isTypeSupported(
-            "video/webm;codecs=vp8,opus"
-        )
-    ) {
+        mimeType = "video/webm;codecs=vp8,opus";
 
-        mimeType =
-            "video/webm;codecs=vp8,opus";
+    } else if (MediaRecorder.isTypeSupported("video/webm")) {
 
-    } else if (
-        MediaRecorder.isTypeSupported(
-            "video/webm"
-        )
-    ) {
-
-        mimeType =
-            "video/webm";
+        mimeType = "video/webm";
 
     }
 
 
     try {
 
-        mediaRecorder =
-            mimeType
-                ? new MediaRecorder(
-                    localStream,
-                    {
-                        mimeType
-                    }
-                )
-                : new MediaRecorder(
-                    localStream
-                );
+        mediaRecorder = mimeType
+            ? new MediaRecorder(localStream, { mimeType })
+            : new MediaRecorder(localStream);
 
 
-        mediaRecorder.ondataavailable =
-            (event) => {
+        mediaRecorder.ondataavailable = event => {
 
-                if (
-                    event.data &&
-                    event.data.size > 0
-                ) {
+            if (event.data && event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
 
-                    recordedChunks.push(
-                        event.data
-                    );
+        };
 
+
+        mediaRecorder.onstop = () => {
+
+            if (recordedChunks.length === 0) {
+
+                console.warn("No recording data captured.");
+
+                return;
+            }
+
+            recordedVideoBlob = new Blob(
+                recordedChunks,
+                {
+                    type: mediaRecorder.mimeType || "video/webm"
                 }
+            );
 
-            };
+            console.log(
+                "✅ Recording ready:",
+                recordedVideoBlob.size,
+                "bytes"
+            );
 
-
-        mediaRecorder.onstop =
-            () => {
-
-                if (
-                    recordedChunks.length === 0
-                ) {
-
-                    console.warn(
-                        "⚠️ No recording data captured."
-                    );
-
-                    return;
-                }
+        };
 
 
-                recordedVideoBlob =
-                    new Blob(
-                        recordedChunks,
-                        {
-                            type:
-                                mediaRecorder.mimeType ||
-                                "video/webm"
-                        }
-                    );
+        mediaRecorder.onerror = event => {
 
+            console.error(
+                "MediaRecorder error:",
+                event.error || event
+            );
 
-                console.log(
-                    "✅ Recording ready:",
-                    recordedVideoBlob.size,
-                    "bytes"
-                );
-
-            };
+        };
 
 
         mediaRecorder.start(1000);
 
-
-        console.log(
-            "🔴 LIVE RECORDING STARTED"
-        );
-
+        console.log("🔴 LIVE RECORDING STARTED");
 
     } catch (error) {
 
-        console.error(
-            "❌ Recording error:",
-            error
-        );
+        console.error("Recording error:", error);
 
     }
 
@@ -545,47 +552,42 @@ async function saveLiveRecording() {
 
     if (!recordedVideoBlob) {
 
-        console.warn(
-            "⚠️ No recording available."
-        );
+        console.warn("No recording available.");
 
         return;
 
     }
 
-
     try {
 
-        console.log(
-            "☁️ Uploading live recording..."
-        );
+        console.log("☁️ Uploading live recording...");
+
+        const user = auth.currentUser;
+
+        if (!user) {
+            throw new Error("User is not authenticated.");
+        }
 
 
         const videoPath =
-            `liveVideos/${auth.currentUser.uid}/${streamId}.webm`;
+            `liveVideos/${user.uid}/${streamId}.webm`;
 
-
-        const videoRef =
-            ref(
-                storage,
-                videoPath
-            );
+        const videoRef = ref(
+            storage,
+            videoPath
+        );
 
 
         await uploadBytes(
             videoRef,
             recordedVideoBlob,
             {
-                contentType:
-                    "video/webm"
+                contentType: "video/webm"
             }
         );
 
 
-        const videoURL =
-            await getDownloadURL(
-                videoRef
-            );
+        const videoURL = await getDownloadURL(videoRef);
 
 
         await updateDoc(
@@ -595,34 +597,21 @@ async function saveLiveRecording() {
                 streamId
             ),
             {
-
-                videoURL:
-                    videoURL,
-
-                videoPath:
-                    videoPath,
-
-                videoSaved:
-                    true,
-
-                savedAt:
-                    serverTimestamp()
-
+                videoURL: videoURL,
+                videoPath: videoPath,
+                videoSaved: true,
+                savedAt: serverTimestamp()
             }
         );
 
 
-        console.log(
-            "✅ Live recording saved"
-        );
-
+        console.log("✅ Live recording saved.");
 
     } catch (error) {
 
-        console.error(
-            "❌ Unable to save recording:",
-            error
-        );
+        console.error("Unable to save recording:", error);
+
+        throw error;
 
     }
 
@@ -630,57 +619,39 @@ async function saveLiveRecording() {
 
 
 // =====================================================
-// WEBRTC HOST SIGNALING
+// START HOST SIGNALING
 // =====================================================
 
 function startSignaling() {
 
-    console.log(
-        "📡 HOST signaling started"
+    console.log("📡 HOST signaling started.");
+
+    const offersRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "offers"
     );
 
 
-    const offersRef =
-        collection(
-            db,
-            "liveStreams",
-            streamId,
-            "offers"
-        );
-
-
-    onSnapshot(
+    unsubscribeOffers = onSnapshot(
         offersRef,
-        async (snapshot) => {
 
-            for (
-                const change of
-                snapshot.docChanges()
-            ) {
+        async snapshot => {
 
-                if (
-                    change.type !== "added"
-                ) {
+            for (const change of snapshot.docChanges()) {
+
+                if (change.type !== "added") {
                     continue;
                 }
 
+                const viewerId = change.doc.id;
 
-                const viewerId =
-                    change.doc.id;
-
-
-                if (
-                    peerConnections[viewerId]
-                ) {
+                if (peerConnections[viewerId]) {
                     continue;
                 }
 
-
-                console.log(
-                    "👤 New viewer:",
-                    viewerId
-                );
-
+                console.log("👤 New viewer:", viewerId);
 
                 await createViewerConnection(
                     viewerId,
@@ -688,6 +659,15 @@ function startSignaling() {
                 );
 
             }
+
+        },
+
+        error => {
+
+            console.error(
+                "Host signaling listener error:",
+                error
+            );
 
         }
     );
@@ -698,8 +678,6 @@ function startSignaling() {
 // =====================================================
 // CREATE HOST CONNECTION TO VIEWER
 // =====================================================
-
-
 
 async function createViewerConnection(viewerId, offerData) {
 
@@ -713,28 +691,26 @@ async function createViewerConnection(viewerId, offerData) {
         viewerId
     );
 
+
     try {
 
         if (!localStream) {
 
-            console.error("❌ Host stream unavailable.");
+            console.error("Host camera stream is unavailable.");
 
             return;
 
         }
 
-        // =============================================
-        // CREATE VIEWER CONNECTION
-        // =============================================
+
+        // CREATE CONNECTION
 
         pc = new RTCPeerConnection(rtcConfig);
 
         peerConnections[viewerId] = pc;
 
 
-        // =============================================
-        // REGISTER VIEWER AS CONNECTING
-        // =============================================
+        // REGISTER VIEWER
 
         await setDoc(
             answerRef,
@@ -750,9 +726,7 @@ async function createViewerConnection(viewerId, offerData) {
         );
 
 
-        // =============================================
-        // SEND HOST CAMERA AND MICROPHONE
-        // =============================================
+        // SEND CAMERA AND MICROPHONE
 
         localStream.getTracks().forEach(track => {
 
@@ -761,9 +735,7 @@ async function createViewerConnection(viewerId, offerData) {
         });
 
 
-        // =============================================
-        // HOST ICE CANDIDATES
-        // =============================================
+        // SEND HOST ICE CANDIDATES
 
         pc.onicecandidate = async event => {
 
@@ -794,9 +766,7 @@ async function createViewerConnection(viewerId, offerData) {
         };
 
 
-        // =============================================
         // CONNECTION STATUS
-        // =============================================
 
         pc.onconnectionstatechange = async () => {
 
@@ -807,6 +777,7 @@ async function createViewerConnection(viewerId, offerData) {
                 viewerId,
                 state
             );
+
 
             let status = null;
 
@@ -821,6 +792,7 @@ async function createViewerConnection(viewerId, offerData) {
             ) {
                 status = "disconnected";
             }
+
 
             if (status) {
 
@@ -845,6 +817,7 @@ async function createViewerConnection(viewerId, offerData) {
 
             }
 
+
             if (
                 state === "failed" ||
                 state === "closed"
@@ -857,26 +830,17 @@ async function createViewerConnection(viewerId, offerData) {
         };
 
 
-        // =============================================
         // RECEIVE VIEWER OFFER
-        // =============================================
 
         await pc.setRemoteDescription(
-
             new RTCSessionDescription({
-
                 type: offerData.type,
-
                 sdp: offerData.sdp
-
             })
-
         );
 
 
-        // =============================================
         // RECEIVE VIEWER ICE CANDIDATES
-        // =============================================
 
         const viewerCandidatesRef = collection(
             db,
@@ -890,6 +854,7 @@ async function createViewerConnection(viewerId, offerData) {
 
         onSnapshot(
             viewerCandidatesRef,
+
             async snapshot => {
 
                 for (const change of snapshot.docChanges()) {
@@ -909,29 +874,21 @@ async function createViewerConnection(viewerId, offerData) {
                         }
 
                         await pc.addIceCandidate(
-
-                            new RTCIceCandidate(
-                                change.doc.data()
-                            )
-
+                            new RTCIceCandidate(change.doc.data())
                         );
 
-                        console.log(
-                            "✅ Viewer ICE candidate added"
-                        );
+                        console.log("✅ Viewer ICE candidate added.");
 
                     } catch (error) {
 
-                        console.error(
-                            "Viewer ICE error:",
-                            error
-                        );
+                        console.error("Viewer ICE error:", error);
 
                     }
 
                 }
 
             },
+
             error => {
 
                 console.error(
@@ -943,37 +900,28 @@ async function createViewerConnection(viewerId, offerData) {
         );
 
 
-        // =============================================
         // CREATE HOST ANSWER
-        // =============================================
 
         const answer = await pc.createAnswer();
 
         await pc.setLocalDescription(answer);
 
 
-        // Wait for host ICE gathering to complete.
+        // WAIT FOR ICE GATHERING
+
         await waitForIceGathering(pc);
 
 
-        // =============================================
         // SEND HOST ANSWER
-        // =============================================
 
         await updateDoc(
             answerRef,
             {
-
                 answer: {
-
                     type: pc.localDescription.type,
-
                     sdp: pc.localDescription.sdp
-
                 },
-
                 status: "connecting"
-
             }
         );
 
@@ -986,17 +934,12 @@ async function createViewerConnection(viewerId, offerData) {
 
     } catch (error) {
 
-        console.error(
-            "❌ Host WebRTC error:",
-            error
-        );
+        console.error("Host WebRTC error:", error);
 
         if (pc) {
-
             try {
                 pc.close();
             } catch {}
-
         }
 
         delete peerConnections[viewerId];
@@ -1025,283 +968,58 @@ async function createViewerConnection(viewerId, offerData) {
 }
 
 
-        // =================================================
-        // SEND HOST CAMERA + MICROPHONE
-        // =================================================
-
-        localStream
-            .getTracks()
-            .forEach(track => {
-
-                pc.addTrack(
-                    track,
-                    localStream
-                );
-
-            });
-
-
-        // =================================================
-        // HOST ICE
-        // =================================================
-
-        pc.onicecandidate =
-            async (event) => {
-
-                if (!event.candidate) {
-                    return;
-                }
-
-
-                try {
-
-                    await addDoc(
-
-                        collection(
-                            db,
-                            "liveStreams",
-                            streamId,
-                            "viewers",
-                            viewerId,
-                            "hostCandidates"
-                        ),
-
-                        event.candidate.toJSON()
-
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "Host ICE error:",
-                        error
-                    );
-
-                }
-
-            };
-
-
-        // =================================================
-        // CONNECTION STATE
-        // =================================================
-
-        pc.onconnectionstatechange =
-            () => {
-
-                console.log(
-                    "🔗 Viewer connection:",
-                    viewerId,
-                    pc.connectionState
-                );
-
-
-                if (
-                    pc.connectionState ===
-                    "failed" ||
-                    pc.connectionState ===
-                    "closed"
-                ) {
-
-                    delete peerConnections[
-                        viewerId
-                    ];
-
-                }
-
-            };
-
-
-        // =================================================
-        // ANSWER DOCUMENT
-        // =================================================
-
-        const answerRef =
-            doc(
-                db,
-                "liveStreams",
-                streamId,
-                "viewers",
-                viewerId
-            );
-
-
-        await setDoc(
-            answerRef,
-            {
-                answer: null
-            },
-            {
-                merge: true
-            }
-        );
-
-
-        // =================================================
-        // RECEIVE VIEWER OFFER
-        // =================================================
-
-        await pc.setRemoteDescription(
-
-            new RTCSessionDescription({
-
-                type:
-                    offerData.type,
-
-                sdp:
-                    offerData.sdp
-
-            })
-
-        );
-
-
-        // =================================================
-        // CREATE ANSWER
-        // =================================================
-
-        const answer =
-            await pc.createAnswer();
-
-
-        await pc.setLocalDescription(
-            answer
-        );
-
-
-        await waitForIceGathering(
-            pc
-        );
-
-
-        // =================================================
-        // SEND ANSWER
-        // =================================================
-
-        await updateDoc(
-            answerRef,
-            {
-
-                answer: {
-
-                    type:
-                        pc.localDescription.type,
-
-                    sdp:
-                        pc.localDescription.sdp
-
-                }
-
-            }
-        );
-
-
-        // =================================================
-        // RECEIVE VIEWER ICE
-        // =================================================
-
-        const viewerCandidatesRef =
-            collection(
-                db,
-                "liveStreams",
-                streamId,
-                "viewers",
-                viewerId,
-                "viewerCandidates"
-            );
-
-
-        onSnapshot(
-            viewerCandidatesRef,
-            async (snapshot) => {
-
-                for (
-                    const change of
-                    snapshot.docChanges()
-                ) {
-
-                    if (
-                        change.type !== "added"
-                    ) {
-                        continue;
-                    }
-
-
-                    try {
-
-                        await pc.addIceCandidate(
-
-                            new RTCIceCandidate(
-                                change.doc.data()
-                            )
-
-                        );
-
-                    } catch (error) {
-
-                        console.error(
-                            "Viewer ICE error:",
-                            error
-                        );
-
-                    }
-
-                }
-
-            }
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ Host WebRTC error:",
-            error
-        );
-
-    }
-
-}
-
-
 // =====================================================
-// WAIT FOR ICE
+// WAIT FOR ICE GATHERING
 // =====================================================
 
 function waitForIceGathering(pc) {
 
     return new Promise(resolve => {
 
-        if (
-            pc.iceGatheringState ===
-            "complete"
-        ) {
-
+        if (pc.iceGatheringState === "complete") {
             resolve();
-
             return;
-
         }
 
 
-        const checkIce =
-            () => {
+        let finished = false;
 
-                if (
-                    pc.iceGatheringState ===
-                    "complete"
-                ) {
+        const finish = () => {
 
-                    pc.removeEventListener(
-                        "icegatheringstatechange",
-                        checkIce
-                    );
+            if (finished) {
+                return;
+            }
 
-                    resolve();
+            finished = true;
 
-                }
+            pc.removeEventListener(
+                "icegatheringstatechange",
+                checkIce
+            );
 
-            };
+            clearTimeout(timeout);
+
+            resolve();
+
+        };
+
+
+        const checkIce = () => {
+
+            if (pc.iceGatheringState === "complete") {
+                finish();
+            }
+
+        };
+
+
+        const timeout = setTimeout(() => {
+
+            console.warn("ICE gathering timed out; continuing.");
+
+            finish();
+
+        }, 10000);
 
 
         pc.addEventListener(
@@ -1315,158 +1033,140 @@ function waitForIceGathering(pc) {
 
 
 // =====================================================
-// MICROPHONE
+// MICROPHONE BUTTON
 // =====================================================
 
-micBtn.addEventListener(
-    "click",
-    () => {
+if (micBtn) {
+
+    micBtn.addEventListener("click", () => {
 
         if (!localStream) {
             return;
         }
 
+        microphoneEnabled = !microphoneEnabled;
 
-        localStream
-            .getAudioTracks()
-            .forEach(track => {
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = microphoneEnabled;
+        });
 
-                track.enabled =
-                    !track.enabled;
+        micBtn.textContent = microphoneEnabled ? "🎤" : "🔇";
 
-                microphoneEnabled =
-                    track.enabled;
+    });
 
-            });
-
-
-        micBtn.textContent =
-            microphoneEnabled
-                ? "🎤"
-                : "🔇";
-
-    }
-);
+}
 
 
 // =====================================================
-// CAMERA
+// CAMERA BUTTON
 // =====================================================
 
-cameraBtn.addEventListener(
-    "click",
-    () => {
+if (cameraBtn) {
+
+    cameraBtn.addEventListener("click", () => {
 
         if (!localStream) {
             return;
         }
 
+        cameraEnabled = !cameraEnabled;
 
-        localStream
-            .getVideoTracks()
-            .forEach(track => {
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = cameraEnabled;
+        });
 
-                track.enabled =
-                    !track.enabled;
+        cameraBtn.textContent = cameraEnabled ? "📷" : "🚫";
 
-                cameraEnabled =
-                    track.enabled;
+    });
 
+}
+
+
+// =====================================================
+// SWITCH CAMERA BUTTON
+// =====================================================
+
+if (switchCameraBtn) {
+
+    switchCameraBtn.addEventListener("click", async () => {
+
+        if (isEnding) {
+            return;
+        }
+
+        usingFrontCamera = !usingFrontCamera;
+
+        const cameraReady = await startCamera(true);
+
+        if (!cameraReady) {
+            usingFrontCamera = !usingFrontCamera;
+            return;
+        }
+
+
+        // REPLACE VIDEO TRACK FOR CONNECTED VIEWERS
+
+        const newVideoTrack = localStream.getVideoTracks()[0];
+
+        Object.values(peerConnections).forEach(pc => {
+
+            const sender = pc.getSenders().find(s => {
+                return s.track && s.track.kind === "video";
             });
 
+            if (sender && newVideoTrack) {
 
-        cameraBtn.textContent =
-            cameraEnabled
-                ? "📷"
-                : "🚫";
+                sender.replaceTrack(newVideoTrack).catch(error => {
 
-    }
-);
-
-
-// =====================================================
-// SWITCH CAMERA
-// =====================================================
-
-switchCameraBtn.addEventListener(
-    "click",
-    async () => {
-
-        usingFrontCamera =
-            !usingFrontCamera;
-
-
-        await startCamera();
-
-
-        const newVideoTrack =
-            localStream.getVideoTracks()[0];
-
-
-        Object.values(
-            peerConnections
-        ).forEach(pc => {
-
-            const sender =
-                pc.getSenders()
-                    .find(
-                        s =>
-                            s.track &&
-                            s.track.kind ===
-                            "video"
+                    console.error(
+                        "Camera track replacement error:",
+                        error
                     );
 
-
-            if (sender) {
-
-                sender.replaceTrack(
-                    newVideoTrack
-                );
+                });
 
             }
 
         });
 
-    }
-);
+        console.log("📷 Camera switched.");
+
+    });
+
+}
 
 
 // =====================================================
 // END LIVE BUTTON
 // =====================================================
 
-endLiveBtn.addEventListener(
-    "click",
-    async () => {
+if (endLiveBtn) {
+
+    endLiveBtn.addEventListener("click", async () => {
 
         if (isEnding) {
             return;
         }
 
-
-        const confirmed =
-            confirm(
-                "Do you want to end your live stream?"
-            );
-
+        const confirmed = confirm(
+            "Do you want to end your live stream?"
+        );
 
         if (!confirmed) {
             return;
         }
 
-
-        shouldSaveVideo =
-            confirm(
-                "Do you want to save this live video?\n\n" +
-                "OK = Save Video\n" +
-                "Cancel = Discard Video"
-            );
-
+        shouldSaveVideo = confirm(
+            "Do you want to save this live video?\n\n" +
+            "OK = Save Video\n" +
+            "Cancel = Discard Video"
+        );
 
         await endLive();
 
-    }
-);
+    });
+
+}
 
 
 // =====================================================
@@ -1479,23 +1179,17 @@ async function endLive() {
         return;
     }
 
-
     try {
 
         isEnding = true;
 
-
-        endLiveBtn.disabled =
-            true;
-
-
-        endLiveBtn.textContent =
-            "Ending...";
+        if (endLiveBtn) {
+            endLiveBtn.disabled = true;
+            endLiveBtn.textContent = "Ending...";
+        }
 
 
-        // =================================================
         // STOP RECORDING
-        // =================================================
 
         if (
             mediaRecorder &&
@@ -1507,11 +1201,8 @@ async function endLive() {
                 mediaRecorder.addEventListener(
                     "stop",
                     resolve,
-                    {
-                        once: true
-                    }
+                    { once: true }
                 );
-
 
                 mediaRecorder.stop();
 
@@ -1520,54 +1211,38 @@ async function endLive() {
         }
 
 
-        // =================================================
-        // SAVE VIDEO
-        // =================================================
+        // SAVE OR DISCARD RECORDING
 
-        if (
-            shouldSaveVideo &&
-            recordedVideoBlob
-        ) {
+        if (shouldSaveVideo && recordedVideoBlob) {
 
             await saveLiveRecording();
 
         } else {
 
             recordedChunks = [];
-
             recordedVideoBlob = null;
 
-            console.log(
-                "🗑️ Live recording discarded"
-            );
+            console.log("🗑️ Live recording discarded.");
 
         }
 
 
-        // =================================================
         // STOP CAMERA
-        // =================================================
 
         if (localStream) {
 
-            localStream
-                .getTracks()
-                .forEach(track => {
-                    track.stop();
-                });
+            localStream.getTracks().forEach(track => {
+                track.stop();
+            });
 
             localStream = null;
 
         }
 
 
-        // =================================================
         // CLOSE VIEWER CONNECTIONS
-        // =================================================
 
-        Object.values(
-            peerConnections
-        ).forEach(pc => {
+        Object.values(peerConnections).forEach(pc => {
 
             try {
                 pc.close();
@@ -1575,71 +1250,60 @@ async function endLive() {
 
         });
 
-
         peerConnections = {};
 
 
-        // =================================================
+        // STOP FIRESTORE LISTENERS
+
+        if (unsubscribeViewers) {
+            unsubscribeViewers();
+            unsubscribeViewers = null;
+        }
+
+        if (unsubscribeOffers) {
+            unsubscribeOffers();
+            unsubscribeOffers = null;
+        }
+
+        if (unsubscribeMessages) {
+            unsubscribeMessages();
+            unsubscribeMessages = null;
+        }
+
+
         // MARK STREAM ENDED
-        // =================================================
 
         await updateDoc(
-
             doc(
                 db,
                 "liveStreams",
                 streamId
             ),
-
             {
-
-                status:
-                    "ended",
-
-                endedAt:
-                    serverTimestamp(),
-
-                viewerCount:
-                    0
-
+                status: "ended",
+                endedAt: serverTimestamp(),
+                viewerCount: 0
             }
-
         );
 
 
-        console.log(
-            "🛑 LIVE ENDED:",
-            streamId
-        );
+        console.log("🛑 LIVE ENDED:", streamId);
 
-
-        window.location.replace(
-            "stream.html"
-        );
+        window.location.replace("stream.html");
 
 
     } catch (error) {
 
-        console.error(
-            "❌ End live error:",
-            error
-        );
+        console.error("End live error:", error);
 
-
-        alert(
-            "Unable to end the live stream."
-        );
-
+        alert("Unable to end the live stream. Check the browser console.");
 
         isEnding = false;
 
-
-        endLiveBtn.disabled =
-            false;
-
-
-        endLiveBtn.textContent =
-            "🛑 End Live";
+        if (endLiveBtn) {
+            endLiveBtn.disabled = false;
+            endLiveBtn.textContent = "🛑 End Live";
+        }
 
     }
 
@@ -1647,41 +1311,29 @@ async function endLive() {
 
 
 // =====================================================
-// BACK BUTTON — HOST ONLY
+// BACK BUTTON
 // =====================================================
 
-backBtn.addEventListener(
-    "click",
-    () => {
+if (backBtn) {
+
+    backBtn.addEventListener("click", () => {
 
         /*
-         * IMPORTANT:
-         * Back does NOT end the live.
-         *
-         * The stream remains:
-         *
-         * status = "live"
-         *
-         * The host can return to it later.
+         * Back does not end the live stream.
+         * It stops the host camera and closes connections.
          */
-
 
         if (localStream) {
 
-            localStream
-                .getTracks()
-                .forEach(track => {
-                    track.stop();
-                });
+            localStream.getTracks().forEach(track => {
+                track.stop();
+            });
 
             localStream = null;
 
         }
 
-
-        Object.values(
-            peerConnections
-        ).forEach(pc => {
+        Object.values(peerConnections).forEach(pc => {
 
             try {
                 pc.close();
@@ -1689,16 +1341,25 @@ backBtn.addEventListener(
 
         });
 
-
         peerConnections = {};
 
+        if (unsubscribeViewers) {
+            unsubscribeViewers();
+        }
 
-        window.location.replace(
-            "stream.html"
-        );
+        if (unsubscribeOffers) {
+            unsubscribeOffers();
+        }
 
-    }
-);
+        if (unsubscribeMessages) {
+            unsubscribeMessages();
+        }
+
+        window.location.replace("stream.html");
+
+    });
+
+}
 
 
 // =====================================================
@@ -1711,122 +1372,81 @@ function startLiveChat() {
         return;
     }
 
-
-    const messagesRef =
-        collection(
-            db,
-            "liveStreams",
-            streamId,
-            "messages"
-        );
+    const messagesRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "messages"
+    );
 
 
-    onSnapshot(
+    unsubscribeMessages = onSnapshot(
         messagesRef,
-        (snapshot) => {
+
+        snapshot => {
+
+            if (!chatMessages) {
+                return;
+            }
 
             const messages = [];
 
+            snapshot.forEach(messageDoc => {
 
-            snapshot.forEach(
-                messageDoc => {
+                messages.push({
+                    id: messageDoc.id,
+                    ...messageDoc.data()
+                });
 
-                    messages.push({
-                        id:
-                            messageDoc.id,
-
-                        ...messageDoc.data()
-
-                    });
-
-                }
-            );
+            });
 
 
-            messages.sort(
-                (a, b) => {
+            messages.sort((a, b) => {
 
-                    const timeA =
-                        a.createdAt
-                            ?.toMillis?.() || 0;
+                const timeA = a.createdAt?.toMillis?.() || 0;
+                const timeB = b.createdAt?.toMillis?.() || 0;
 
-                    const timeB =
-                        b.createdAt
-                            ?.toMillis?.() || 0;
+                return timeA - timeB;
 
-                    return timeA - timeB;
-
-                }
-            );
+            });
 
 
             chatMessages.innerHTML = "";
 
 
-            messages.forEach(
-                message => {
+            messages.forEach(message => {
 
-                    const messageDiv =
-                        document.createElement(
-                            "div"
-                        );
+                const messageDiv = document.createElement("div");
+
+                messageDiv.className = "live-chat-message";
 
 
-                    messageDiv.className =
-                        "live-chat-message";
+                const username = document.createElement("strong");
+
+                username.textContent = message.username || "User";
 
 
-                    const username =
-                        document.createElement(
-                            "strong"
-                        );
+                const text = document.createElement("span");
+
+                text.textContent = message.text || "";
 
 
-                    username.textContent =
-                        message.username ||
-                        "User";
+                messageDiv.appendChild(username);
+
+                messageDiv.appendChild(
+                    document.createTextNode(" ")
+                );
+
+                messageDiv.appendChild(text);
+
+                chatMessages.appendChild(messageDiv);
+
+            });
 
 
-                    const text =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    text.textContent =
-                        message.text || "";
-
-
-                    messageDiv.appendChild(
-                        username
-                    );
-
-
-                    messageDiv.appendChild(
-                        document.createTextNode(
-                            " "
-                        )
-                    );
-
-
-                    messageDiv.appendChild(
-                        text
-                    );
-
-
-                    chatMessages.appendChild(
-                        messageDiv
-                    );
-
-                }
-            );
-
-
-            chatMessages.scrollTop =
-                chatMessages.scrollHeight;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
         },
-
 
         error => {
 
@@ -1836,36 +1456,32 @@ function startLiveChat() {
             );
 
         }
-
     );
 
 }
 
 
 // =====================================================
-// SEND CHAT
+// SEND CHAT MESSAGE
 // =====================================================
 
 async function sendChatMessage() {
 
-    const user =
-        auth.currentUser;
-
+    const user = auth.currentUser;
 
     if (!user) {
 
-        alert(
-            "Please log in to chat."
-        );
+        alert("Please log in to chat.");
 
         return;
 
     }
 
+    if (!chatInput) {
+        return;
+    }
 
-    const text =
-        chatInput.value.trim();
-
+    const text = chatInput.value.trim();
 
     if (!text) {
         return;
@@ -1874,63 +1490,41 @@ async function sendChatMessage() {
 
     try {
 
-        sendChatBtn.disabled =
-            true;
+        if (sendChatBtn) {
+            sendChatBtn.disabled = true;
+        }
 
 
         await addDoc(
-
             collection(
                 db,
                 "liveStreams",
                 streamId,
                 "messages"
             ),
-
             {
-
-                userId:
-                    user.uid,
-
-                username:
-                    user.displayName ||
-                    user.email ||
-                    "MatchConnect User",
-
-                photoURL:
-                    user.photoURL || "",
-
-                text:
-                    text,
-
-                createdAt:
-                    serverTimestamp()
-
+                userId: user.uid,
+                username: user.displayName || user.email || "AlQlic User",
+                photoURL: user.photoURL || "",
+                text: text,
+                createdAt: serverTimestamp()
             }
-
         );
 
 
         chatInput.value = "";
 
-
     } catch (error) {
 
-        console.error(
-            "Send live chat error:",
-            error
-        );
+        console.error("Send live chat error:", error);
 
-
-        alert(
-            "Unable to send your message."
-        );
-
+        alert("Unable to send your message.");
 
     } finally {
 
-        sendChatBtn.disabled =
-            false;
+        if (sendChatBtn) {
+            sendChatBtn.disabled = false;
+        }
 
         chatInput.focus();
 
@@ -1943,20 +1537,21 @@ async function sendChatMessage() {
 // CHAT EVENTS
 // =====================================================
 
-sendChatBtn.addEventListener(
-    "click",
-    sendChatMessage
-);
+if (sendChatBtn) {
+
+    sendChatBtn.addEventListener(
+        "click",
+        sendChatMessage
+    );
+
+}
 
 
-chatInput.addEventListener(
-    "keydown",
-    event => {
+if (chatInput) {
 
-        if (
-            event.key === "Enter" &&
-            !event.shiftKey
-        ) {
+    chatInput.addEventListener("keydown", event => {
+
+        if (event.key === "Enter" && !event.shiftKey) {
 
             event.preventDefault();
 
@@ -1964,38 +1559,31 @@ chatInput.addEventListener(
 
         }
 
-    }
-);
+    });
+
+}
 
 
 // =====================================================
 // CLEANUP
 // =====================================================
 
-window.addEventListener(
-    "beforeunload",
-    () => {
+window.addEventListener("beforeunload", () => {
 
-        if (localStream) {
+    if (localStream) {
 
-            localStream
-                .getTracks()
-                .forEach(track => {
-                    track.stop();
-                });
-
-        }
-
-
-        Object.values(
-            peerConnections
-        ).forEach(pc => {
-
-            try {
-                pc.close();
-            } catch {}
-
+        localStream.getTracks().forEach(track => {
+            track.stop();
         });
 
     }
-);
+
+    Object.values(peerConnections).forEach(pc => {
+
+        try {
+            pc.close();
+        } catch {}
+
+    });
+
+});
