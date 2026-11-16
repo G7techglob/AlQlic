@@ -1,3 +1,4 @@
+
 import { auth, db } from "./firebase.js";
 
 import {
@@ -21,51 +22,25 @@ console.log("✅ Watch Live JS loaded");
 // GET STREAM ID
 // =====================================================
 
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-const streamId =
-    params.get("streamId");
+const params = new URLSearchParams(window.location.search);
+const streamId = params.get("streamId");
 
 
 // =====================================================
 // ELEMENTS
 // =====================================================
 
-const remoteVideo =
-    document.getElementById("remoteVideo");
-
-const title =
-    document.getElementById("title");
-
-const streamTitle =
-    document.getElementById("streamTitle");
-
-const viewerCount =
-    document.getElementById("viewerCount");
-
-const hostInfo =
-    document.getElementById("hostInfo");
-
-const chatMessages =
-    document.getElementById("chatMessages");
-
-const chatInput =
-    document.getElementById("chatInput");
-
-const sendChatBtn =
-    document.getElementById("sendChatBtn");
-
-const likeBtn =
-    document.getElementById("likeBtn");
-
-const giftBtn =
-    document.getElementById("giftBtn");
-
-const shareBtn =
-    document.getElementById("shareBtn");
+const remoteVideo = document.getElementById("remoteVideo");
+const title = document.getElementById("title");
+const streamTitle = document.getElementById("streamTitle");
+const viewerCount = document.getElementById("viewerCount");
+const hostInfo = document.getElementById("hostInfo");
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+const sendChatBtn = document.getElementById("sendChatBtn");
+const likeBtn = document.getElementById("likeBtn");
+const giftBtn = document.getElementById("giftBtn");
+const shareBtn = document.getElementById("shareBtn");
 
 
 // =====================================================
@@ -73,20 +48,19 @@ const shareBtn =
 // =====================================================
 
 let peerConnection = null;
-
 let viewerId = null;
-
 let currentUser = null;
-
 let creatorId = null;
 
 let viewerAnswerRef = null;
-
 let viewerOfferRef = null;
 
 let streamEnded = false;
-
 let cleanupStarted = false;
+
+let unsubscribeAnswer = null;
+let unsubscribeHostCandidates = null;
+let unsubscribeChat = null;
 
 
 // =====================================================
@@ -94,21 +68,14 @@ let cleanupStarted = false;
 // =====================================================
 
 const rtcConfig = {
-
     iceServers: [
-
         {
-            urls:
-                "stun:stun.l.google.com:19302"
+            urls: "stun:stun.l.google.com:19302"
         },
-
         {
-            urls:
-                "stun:stun1.l.google.com:19302"
+            urls: "stun:stun1.l.google.com:19302"
         }
-
     ]
-
 };
 
 
@@ -118,65 +85,52 @@ const rtcConfig = {
 
 if (!streamId) {
 
-    alert(
-        "Live stream not found."
-    );
+    alert("Live stream not found.");
 
-    window.location.href =
-        "stream.html";
+    window.location.href = "stream.html";
 
 }
 
 
 // =====================================================
-// AUTH
+// AUTHENTICATION
 // =====================================================
 
-auth.onAuthStateChanged(
-    async user => {
+auth.onAuthStateChanged(async user => {
 
-        if (!user) {
+    if (!user) {
 
-            alert(
-                "Please log in to watch this live stream."
-            );
+        alert("Please log in to watch this live stream.");
 
-            window.location.href =
-                "login.html";
+        window.location.href = "login.html";
 
+        return;
+    }
+
+    currentUser = user;
+    viewerId = user.uid;
+
+    try {
+
+        await loadStream();
+
+        if (streamEnded) {
             return;
-
         }
 
+        await joinLive();
 
-        currentUser = user;
+        listenForChat();
 
-        viewerId = user.uid;
+    } catch (error) {
 
+        console.error("Watch Live startup error:", error);
 
-        try {
-
-            await loadStream();
-
-            if (streamEnded) {
-                return;
-            }
-
-            await joinLive();
-
-            listenForChat();
-
-        } catch (error) {
-
-            console.error(
-                "Watch Live startup error:",
-                error
-            );
-
-        }
+        alert("Unable to join this live stream. Please try again.");
 
     }
-);
+
+});
 
 
 // =====================================================
@@ -185,106 +139,63 @@ auth.onAuthStateChanged(
 
 async function loadStream() {
 
-    const streamRef =
-        doc(
-            db,
-            "liveStreams",
-            streamId
-        );
+    const streamRef = doc(
+        db,
+        "liveStreams",
+        streamId
+    );
 
-
-    const streamSnap =
-        await getDoc(
-            streamRef
-        );
-
+    const streamSnap = await getDoc(streamRef);
 
     if (!streamSnap.exists()) {
 
-        alert(
-            "This live stream does not exist."
-        );
-
-        window.location.href =
-            "stream.html";
+        alert("This live stream does not exist.");
 
         streamEnded = true;
 
-        return;
+        window.location.href = "stream.html";
 
+        return;
     }
 
+    const stream = streamSnap.data();
 
-    const stream =
-        streamSnap.data();
+    creatorId = stream.hostId || null;
 
+    if (stream.status !== "live") {
 
-    creatorId =
-        stream.hostId || null;
-
-
-    if (
-        stream.status !== "live"
-    ) {
-
-        alert(
-            "This live stream has ended."
-        );
+        alert("This live stream has ended.");
 
         streamEnded = true;
 
-        return;
+        window.location.href = "stream.html";
 
+        return;
     }
 
-
-    const streamName =
-        stream.title ||
-        "AlQlic Live";
-
+    const streamName = stream.title || "AlQlic Live";
 
     if (title) {
-
-        title.textContent =
-            streamName;
-
+        title.textContent = streamName;
     }
-
 
     if (streamTitle) {
-
-        streamTitle.textContent =
-            streamName;
-
+        streamTitle.textContent = streamName;
     }
-
 
     if (viewerCount) {
-
-        viewerCount.textContent =
-            stream.viewerCount || 0;
-
+        viewerCount.textContent = stream.viewerCount || 0;
     }
-
 
     if (hostInfo) {
-
-        hostInfo.textContent =
-            stream.hostName ||
-            "AlQlic User";
-
+        hostInfo.textContent = stream.hostName || "AlQlic User";
     }
-
-
-    const likes =
-        stream.likes || 0;
-
 
     if (likeBtn) {
 
-        likeBtn.innerHTML =
-            `❤️ <span>${likes}</span>`;
+        const likes = stream.likes || 0;
 
+        likeBtn.innerHTML = `❤️ <span>${likes}</span>`;
     }
 
 }
@@ -294,10 +205,9 @@ async function loadStream() {
 // JOIN LIVE
 // =====================================================
 
-
 async function joinLive() {
 
-    if (streamEnded) {
+    if (streamEnded || !viewerId) {
         return;
     }
 
@@ -305,16 +215,13 @@ async function joinLive() {
 
     peerConnection = new RTCPeerConnection(rtcConfig);
 
-    // Store host candidates that arrive before the answer.
     let pendingHostCandidates = [];
-
     let remoteDescriptionReady = false;
-
     let answerApplied = false;
 
 
     // =================================================
-    // RECEIVE HOST MEDIA
+    // RECEIVE HOST VIDEO AND AUDIO
     // =================================================
 
     peerConnection.ontrack = event => {
@@ -332,7 +239,7 @@ async function joinLive() {
             remoteVideo.play().catch(error => {
 
                 console.log(
-                    "Video play waiting for user interaction:",
+                    "Video playback requires user interaction:",
                     error
                 );
 
@@ -344,7 +251,7 @@ async function joinLive() {
 
 
     // =================================================
-    // VIEWER ICE CANDIDATES
+    // SEND VIEWER ICE CANDIDATES
     // =================================================
 
     peerConnection.onicecandidate = async event => {
@@ -372,10 +279,7 @@ async function joinLive() {
 
         } catch (error) {
 
-            console.error(
-                "Viewer ICE error:",
-                error
-            );
+            console.error("Viewer ICE error:", error);
 
         }
 
@@ -392,18 +296,13 @@ async function joinLive() {
             return;
         }
 
-        console.log(
-            "WebRTC connection:",
-            peerConnection.connectionState
-        );
+        const state = peerConnection.connectionState;
 
-        if (
-            peerConnection.connectionState === "failed"
-        ) {
+        console.log("WebRTC connection:", state);
 
-            console.error(
-                "WebRTC connection failed."
-            );
+        if (state === "failed") {
+
+            console.error("WebRTC connection failed.");
 
         }
 
@@ -411,7 +310,7 @@ async function joinLive() {
 
 
     // =================================================
-    // CREATE OFFER
+    // CREATE VIEWER OFFER
     // =================================================
 
     const offer = await peerConnection.createOffer({
@@ -422,12 +321,11 @@ async function joinLive() {
 
     });
 
-
     await peerConnection.setLocalDescription(offer);
 
 
     // =================================================
-    // SAVE OFFER
+    // SAVE VIEWER OFFER
     // =================================================
 
     viewerOfferRef = doc(
@@ -438,22 +336,17 @@ async function joinLive() {
         viewerId
     );
 
+    await setDoc(viewerOfferRef, {
 
-    await setDoc(
-        viewerOfferRef,
-        {
+        type: offer.type,
 
-            type: offer.type,
+        sdp: offer.sdp,
 
-            sdp: offer.sdp,
+        viewerId: viewerId,
 
-            viewerId: viewerId,
+        createdAt: serverTimestamp()
 
-            createdAt: serverTimestamp()
-
-        }
-    );
-
+    });
 
     console.log("📤 Viewer offer sent");
 
@@ -472,7 +365,7 @@ async function joinLive() {
 
 
     // =================================================
-    // RECEIVE HOST ICE CANDIDATES
+    // LISTEN FOR HOST ICE CANDIDATES
     // =================================================
 
     const hostCandidatesRef = collection(
@@ -484,9 +377,10 @@ async function joinLive() {
         "hostCandidates"
     );
 
+    unsubscribeHostCandidates = onSnapshot(
 
-    onSnapshot(
         hostCandidatesRef,
+
         async snapshot => {
 
             for (const change of snapshot.docChanges()) {
@@ -497,69 +391,52 @@ async function joinLive() {
 
                 const candidateData = change.doc.data();
 
+                if (!candidateData || !peerConnection) {
+                    continue;
+                }
+
                 try {
-
-                    if (
-                        !peerConnection ||
-                        !candidateData
-                    ) {
-                        continue;
-                    }
-
-
-                    // If the host answer is not ready,
-                    // save this candidate temporarily.
 
                     if (!remoteDescriptionReady) {
 
-                        pendingHostCandidates.push(
-                            candidateData
-                        );
+                        pendingHostCandidates.push(candidateData);
 
                         continue;
-
                     }
-
 
                     await peerConnection.addIceCandidate(
                         new RTCIceCandidate(candidateData)
                     );
 
-
-                    console.log(
-                        "✅ Host ICE candidate added"
-                    );
-
+                    console.log("✅ Host ICE candidate added");
 
                 } catch (error) {
 
-                    console.error(
-                        "Host ICE error:",
-                        error
-                    );
+                    console.error("Host ICE error:", error);
 
                 }
 
             }
 
         },
+
         error => {
 
-            console.error(
-                "Host ICE listener error:",
-                error
-            );
+            console.error("Host ICE listener error:", error);
 
         }
+
     );
 
 
     // =================================================
-    // RECEIVE HOST ANSWER
+    // LISTEN FOR HOST ANSWER
     // =================================================
 
-    onSnapshot(
+    unsubscribeAnswer = onSnapshot(
+
         viewerAnswerRef,
+
         async snapshot => {
 
             if (
@@ -570,50 +447,37 @@ async function joinLive() {
                 return;
             }
 
-
             const data = snapshot.data();
-
 
             if (!data.answer) {
                 return;
             }
 
-
             try {
 
                 answerApplied = true;
 
-
                 await peerConnection.setRemoteDescription(
 
-                    new RTCSessionDescription(
-                        data.answer
-                    )
+                    new RTCSessionDescription(data.answer)
 
                 );
-
 
                 remoteDescriptionReady = true;
 
-
-                console.log(
-                    "📥 Host answer received"
-                );
+                console.log("📥 Host answer received");
 
 
-                // Add all host candidates that arrived early.
+                // PROCESS HOST ICE CANDIDATES
+                // THAT ARRIVED BEFORE THE ANSWER
 
-                for (
-                    const candidateData of pendingHostCandidates
-                ) {
+                for (const candidateData of pendingHostCandidates) {
 
                     try {
 
                         await peerConnection.addIceCandidate(
 
-                            new RTCIceCandidate(
-                                candidateData
-                            )
+                            new RTCIceCandidate(candidateData)
 
                         );
 
@@ -628,349 +492,26 @@ async function joinLive() {
 
                 }
 
-
                 pendingHostCandidates = [];
 
-
-                console.log(
-                    "✅ Pending host ICE candidates processed"
-                );
-
+                console.log("✅ Host ICE candidates processed");
 
             } catch (error) {
 
                 answerApplied = false;
 
-                console.error(
-                    "Remote description error:",
-                    error
-                );
+                console.error("Remote description error:", error);
 
             }
 
         },
+
         error => {
 
-            console.error(
-                "Host answer listener error:",
-                error
-            );
+            console.error("Host answer listener error:", error);
 
         }
-    );
 
-}
-
-
-    // =================================================
-    // RECEIVE HOST MEDIA
-    // =================================================
-
-    peerConnection.ontrack =
-        event => {
-
-            console.log(
-                "🎥 Host media received"
-            );
-
-
-            if (
-                event.streams &&
-                event.streams[0] &&
-                remoteVideo
-            ) {
-
-                remoteVideo.srcObject =
-                    event.streams[0];
-
-
-                remoteVideo.play()
-                    .catch(
-                        error => {
-
-                            console.log(
-                                "Video play waiting for user interaction:",
-                                error
-                            );
-
-                        }
-                    );
-
-            }
-
-        };
-
-
-    // =================================================
-    // VIEWER ICE CANDIDATES
-    // =================================================
-
-    peerConnection.onicecandidate =
-        async event => {
-
-            if (!event.candidate) {
-                return;
-            }
-
-
-            try {
-
-                await addDoc(
-
-                    collection(
-                        db,
-                        "liveStreams",
-                        streamId,
-                        "viewers",
-                        viewerId,
-                        "viewerCandidates"
-                    ),
-
-                    event.candidate.toJSON()
-
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Viewer ICE error:",
-                    error
-                );
-
-            }
-
-        };
-
-
-    // =================================================
-    // CONNECTION STATE
-    // =================================================
-
-    peerConnection.onconnectionstatechange =
-        () => {
-
-            if (!peerConnection) {
-                return;
-            }
-
-
-            console.log(
-                "WebRTC connection:",
-                peerConnection.connectionState
-            );
-
-
-            if (
-                peerConnection.connectionState ===
-                "failed"
-            ) {
-
-                console.error(
-                    "WebRTC connection failed."
-                );
-
-            }
-
-        };
-
-
-    // =================================================
-    // CREATE OFFER
-    // =================================================
-
-    const offer =
-        await peerConnection.createOffer({
-
-            offerToReceiveAudio:
-                true,
-
-            offerToReceiveVideo:
-                true
-
-        });
-
-
-    await peerConnection.setLocalDescription(
-        offer
-    );
-
-
-    // =================================================
-    // SAVE OFFER
-    // =================================================
-
-    viewerOfferRef =
-        doc(
-            db,
-            "liveStreams",
-            streamId,
-            "offers",
-            viewerId
-        );
-
-
-    await setDoc(
-        viewerOfferRef,
-        {
-
-            type:
-                offer.type,
-
-            sdp:
-                offer.sdp,
-
-            viewerId:
-                viewerId,
-
-            createdAt:
-                serverTimestamp()
-
-        }
-    );
-
-
-    console.log(
-        "📤 Viewer offer sent"
-    );
-
-
-    // =================================================
-    // VIEWER ANSWER DOCUMENT
-    // =================================================
-
-    viewerAnswerRef =
-        doc(
-            db,
-            "liveStreams",
-            streamId,
-            "viewers",
-            viewerId
-        );
-
-
-    // =================================================
-    // LISTEN FOR HOST ANSWER
-    // =================================================
-
-    onSnapshot(
-        viewerAnswerRef,
-        async snapshot => {
-
-            if (!snapshot.exists()) {
-                return;
-            }
-
-
-            const data =
-                snapshot.data();
-
-
-            if (!data.answer) {
-                return;
-            }
-
-
-            if (
-                peerConnection &&
-                peerConnection.currentRemoteDescription
-            ) {
-
-                return;
-
-            }
-
-
-            try {
-
-                if (!peerConnection) {
-                    return;
-                }
-
-
-                await peerConnection
-                    .setRemoteDescription(
-                        new RTCSessionDescription(
-                            data.answer
-                        )
-                    );
-
-
-                console.log(
-                    "📥 Host answer received"
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Remote description error:",
-                    error
-                );
-
-            }
-
-        }
-    );
-
-
-    // =================================================
-    // RECEIVE HOST ICE CANDIDATES
-    // =================================================
-
-    const hostCandidatesRef =
-        collection(
-            db,
-            "liveStreams",
-            streamId,
-            "viewers",
-            viewerId,
-            "hostCandidates"
-        );
-
-
-    onSnapshot(
-        hostCandidatesRef,
-        async snapshot => {
-
-            for (
-                const change of snapshot.docChanges()
-            ) {
-
-                if (
-                    change.type !== "added"
-                ) {
-                    continue;
-                }
-
-
-                try {
-
-                    if (
-                        peerConnection &&
-                        peerConnection.remoteDescription
-                    ) {
-
-                        await peerConnection
-                            .addIceCandidate(
-                                new RTCIceCandidate(
-                                    change.doc.data()
-                                )
-                            );
-
-                    }
-
-                } catch (error) {
-
-                    console.error(
-                        "Host ICE error:",
-                        error
-                    );
-
-                }
-
-            }
-
-        }
     );
 
 }
@@ -982,118 +523,76 @@ async function joinLive() {
 
 function listenForChat() {
 
-    const commentsRef =
-        collection(
-            db,
-            "liveStreams",
-            streamId,
-            "messages"
-        );
+    const commentsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "messages"
+    );
 
+    unsubscribeChat = onSnapshot(
 
-    onSnapshot(
         commentsRef,
+
         snapshot => {
 
             if (!chatMessages) {
                 return;
             }
 
-
             const messages = [];
 
+            snapshot.forEach(commentDoc => {
 
-            snapshot.forEach(
-                commentDoc => {
+                messages.push(commentDoc.data());
 
-                    messages.push(
-                        commentDoc.data()
-                    );
+            });
 
-                }
-            );
+            messages.sort((a, b) => {
 
+                const timeA = a.createdAt?.toMillis?.() || 0;
 
-            messages.sort(
-                (a, b) => {
+                const timeB = b.createdAt?.toMillis?.() || 0;
 
-                    const timeA =
-                        a.createdAt
-                            ?.toMillis?.() || 0;
+                return timeA - timeB;
 
-                    const timeB =
-                        b.createdAt
-                            ?.toMillis?.() || 0;
-
-                    return timeA - timeB;
-
-                }
-            );
-
+            });
 
             chatMessages.innerHTML = "";
 
+            messages.forEach(comment => {
 
-            messages.forEach(
-                comment => {
+                const message = document.createElement("div");
 
-                    const message =
-                        document.createElement(
-                            "div"
-                        );
+                message.className = "chat-message";
 
+                const username = escapeHTML(
+                    comment.username || "User"
+                );
 
-                    message.className =
-                        "chat-message";
+                const messageText = escapeHTML(
+                    comment.text || ""
+                );
 
+                message.innerHTML = `
+                    <strong>${username}</strong>
+                    <span>${messageText}</span>
+                `;
 
-                    const username =
-                        escapeHTML(
-                            comment.username ||
-                            "User"
-                        );
+                chatMessages.appendChild(message);
 
+            });
 
-                    const text =
-                        escapeHTML(
-                            comment.text ||
-                            ""
-                        );
-
-
-                    message.innerHTML = `
-
-                        <strong>
-                            ${username}
-                        </strong>
-
-                        <span>
-                            ${text}
-                        </span>
-
-                    `;
-
-
-                    chatMessages.appendChild(
-                        message
-                    );
-
-                }
-            );
-
-
-            chatMessages.scrollTop =
-                chatMessages.scrollHeight;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
         },
+
         error => {
 
-            console.error(
-                "Live chat error:",
-                error
-            );
+            console.error("Live chat error:", error);
 
         }
+
     );
 
 }
@@ -1105,52 +604,41 @@ function listenForChat() {
 
 if (sendChatBtn) {
 
-    sendChatBtn.addEventListener(
-        "click",
-        sendChat
-    );
+    sendChatBtn.addEventListener("click", sendChat);
 
 }
 
-
 if (chatInput) {
 
-    chatInput.addEventListener(
-        "keydown",
-        event => {
+    chatInput.addEventListener("keydown", event => {
 
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
 
-                event.preventDefault();
+            event.preventDefault();
 
-                sendChat();
-
-            }
+            sendChat();
 
         }
-    );
+
+    });
 
 }
 
 
 async function sendChat() {
 
-    if (!chatInput || !currentUser) {
+    if (!chatInput || !currentUser || streamEnded) {
         return;
     }
 
+    const messageText = chatInput.value.trim();
 
-    const text =
-        chatInput.value.trim();
-
-
-    if (!text) {
+    if (!messageText) {
         return;
     }
-
 
     try {
 
@@ -1165,43 +653,30 @@ async function sendChat() {
 
             {
 
-                userId:
-                    currentUser.uid,
+                userId: currentUser.uid,
 
                 username:
                     currentUser.displayName ||
                     currentUser.email ||
                     "AlQlic User",
 
-                photoURL:
-                    currentUser.photoURL ||
-                    "",
+                photoURL: currentUser.photoURL || "",
 
-                text:
-                    text,
+                text: messageText,
 
-                createdAt:
-                    serverTimestamp()
+                createdAt: serverTimestamp()
 
             }
 
         );
 
-
         chatInput.value = "";
-
 
     } catch (error) {
 
-        console.error(
-            "Send chat error:",
-            error
-        );
+        console.error("Send chat error:", error);
 
-
-        alert(
-            "Unable to send message."
-        );
+        alert("Unable to send message.");
 
     }
 
@@ -1214,52 +689,39 @@ async function sendChat() {
 
 if (likeBtn) {
 
-    likeBtn.addEventListener(
-        "click",
-        async () => {
+    likeBtn.addEventListener("click", async () => {
 
-            if (!currentUser) {
-                return;
-            }
+        if (!currentUser || streamEnded) {
+            return;
+        }
 
+        try {
 
-            try {
+            await updateDoc(
 
-                await updateDoc(
+                doc(
+                    db,
+                    "liveStreams",
+                    streamId
+                ),
 
-                    doc(
-                        db,
-                        "liveStreams",
-                        streamId
-                    ),
+                {
+                    likes: increment(1)
+                }
 
-                    {
+            );
 
-                        likes:
-                            increment(1)
+            likeBtn.disabled = true;
 
-                    }
+            likeBtn.innerHTML = "❤️ Liked";
 
-                );
+        } catch (error) {
 
-
-                likeBtn.disabled = true;
-
-                likeBtn.innerHTML =
-                    "❤️ Liked";
-
-
-            } catch (error) {
-
-                console.error(
-                    "Like error:",
-                    error
-                );
-
-            }
+            console.error("Like error:", error);
 
         }
-    );
+
+    });
 
 }
 
@@ -1270,34 +732,22 @@ if (likeBtn) {
 
 if (giftBtn) {
 
-    giftBtn.addEventListener(
-        "click",
-        () => {
+    giftBtn.addEventListener("click", () => {
 
-            if (!creatorId) {
+        if (!creatorId) {
 
-                alert(
-                    "Creator information is unavailable."
-                );
+            alert("Creator information is unavailable.");
 
-                return;
-
-            }
-
-
-            const giftURL =
-                `gifts.html?creatorId=${encodeURIComponent(
-                    creatorId
-                )}&streamId=${encodeURIComponent(
-                    streamId
-                )}`;
-
-
-            window.location.href =
-                giftURL;
-
+            return;
         }
-    );
+
+        const giftURL =
+            `gifts.html?creatorId=${encodeURIComponent(creatorId)}` +
+            `&streamId=${encodeURIComponent(streamId)}`;
+
+        window.location.href = giftURL;
+
+    });
 
 }
 
@@ -1308,55 +758,39 @@ if (giftBtn) {
 
 if (shareBtn) {
 
-    shareBtn.addEventListener(
-        "click",
-        async () => {
+    shareBtn.addEventListener("click", async () => {
 
-            const shareURL =
-                window.location.href;
+        const shareURL = window.location.href;
 
+        try {
 
-            try {
+            if (navigator.share) {
 
-                if (navigator.share) {
+                await navigator.share({
 
-                    await navigator.share({
+                    title: title?.textContent || "AlQlic Live",
 
-                        title:
-                            title?.textContent ||
-                            "AlQlic Live",
+                    text: "Watch this live stream on AlQlic!",
 
-                        text:
-                            "Watch this live stream on AlQlic!",
+                    url: shareURL
 
-                        url:
-                            shareURL
+                });
 
-                    });
+            } else {
 
-                } else {
+                await navigator.clipboard.writeText(shareURL);
 
-                    await navigator.clipboard.writeText(
-                        shareURL
-                    );
-
-
-                    alert(
-                        "Live stream link copied!"
-                    );
-
-                }
-
-            } catch (error) {
-
-                console.log(
-                    "Share cancelled."
-                );
+                alert("Live stream link copied!");
 
             }
 
+        } catch (error) {
+
+            console.log("Share cancelled or unavailable.");
+
         }
-    );
+
+    });
 
 }
 
@@ -1365,36 +799,19 @@ if (shareBtn) {
 // ESCAPE HTML
 // =====================================================
 
-function escapeHTML(
-    value = ""
-) {
+function escapeHTML(value = "") {
 
     return String(value)
 
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
+        .replaceAll("&", "&amp;")
 
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
+        .replaceAll("<", "&lt;")
 
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
+        .replaceAll(">", "&gt;")
 
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
+        .replaceAll('"', "&quot;")
 
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
+        .replaceAll("'", "&#039;");
 
 }
 
@@ -1403,65 +820,94 @@ function escapeHTML(
 // CLEANUP VIEWER
 // =====================================================
 
-function cleanupViewer() {
+async function cleanupViewer() {
 
     if (cleanupStarted) {
         return;
     }
 
-
     cleanupStarted = true;
 
+    console.log("🧹 Cleaning up viewer connection...");
+
+
+    // STOP FIRESTORE LISTENERS
+
+    if (unsubscribeAnswer) {
+        unsubscribeAnswer();
+        unsubscribeAnswer = null;
+    }
+
+    if (unsubscribeHostCandidates) {
+        unsubscribeHostCandidates();
+        unsubscribeHostCandidates = null;
+    }
+
+    if (unsubscribeChat) {
+        unsubscribeChat();
+        unsubscribeChat = null;
+    }
+
+
+    // CLOSE WEBRTC CONNECTION
 
     if (peerConnection) {
 
         try {
 
+            peerConnection.ontrack = null;
+            peerConnection.onicecandidate = null;
+            peerConnection.onconnectionstatechange = null;
+
             peerConnection.close();
 
         } catch (error) {
 
-            console.error(
-                "Connection cleanup error:",
-                error
-            );
+            console.error("Connection cleanup error:", error);
 
         }
-
 
         peerConnection = null;
 
     }
 
 
+    // REMOVE VIEWER DOCUMENT
+
+    const cleanupTasks = [];
+
     if (viewerAnswerRef) {
 
-        deleteDoc(viewerAnswerRef)
-            .catch(error => {
-
-                console.error(
-                    "Viewer document cleanup error:",
-                    error
-                );
-
-            });
+        cleanupTasks.push(
+            deleteDoc(viewerAnswerRef)
+        );
 
     }
-
 
     if (viewerOfferRef) {
 
-        deleteDoc(viewerOfferRef)
-            .catch(error => {
-
-                console.error(
-                    "Viewer offer cleanup error:",
-                    error
-                );
-
-            });
+        cleanupTasks.push(
+            deleteDoc(viewerOfferRef)
+        );
 
     }
+
+    const results = await Promise.allSettled(cleanupTasks);
+
+    results.forEach(result => {
+
+        if (result.status === "rejected") {
+
+            console.error(
+                "Firestore cleanup error:",
+                result.reason
+            );
+
+        }
+
+    });
+
+    console.log("✅ Viewer cleanup completed");
 
 }
 
@@ -1470,13 +916,14 @@ function cleanupViewer() {
 // PAGE CLEANUP
 // =====================================================
 
-window.addEventListener(
-    "beforeunload",
-    cleanupViewer
-);
+window.addEventListener("pagehide", () => {
 
+    cleanupViewer();
 
-window.addEventListener(
-    "pagehide",
-    cleanupViewer
-);
+});
+
+window.addEventListener("beforeunload", () => {
+
+    cleanupViewer();
+
+});
