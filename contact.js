@@ -1,6 +1,6 @@
 
 /* =====================================
-   ALQLIC CONTACT & SUPPORT FORM
+   ALQLIC CUSTOMER SUPPORT INBOX
 ===================================== */
 
 import { auth, db } from "./firebase.js";
@@ -25,15 +25,15 @@ import {
 // =====================================
 
 const contactForm = document.getElementById("contactForm");
-
 const formMessage = document.getElementById("formMessage");
-
 const backBtn = document.getElementById("backBtn");
 
 const mySupportRequests =
     document.getElementById("mySupportRequests");
 
 let currentUser = null;
+let requestUnsubscribe = null;
+let messageUnsubscribers = [];
 
 
 // =====================================
@@ -41,11 +41,9 @@ let currentUser = null;
 // =====================================
 
 if (backBtn) {
-
     backBtn.addEventListener("click", () => {
         window.history.back();
     });
-
 }
 
 
@@ -57,20 +55,40 @@ onAuthStateChanged(auth, (user) => {
 
     currentUser = user;
 
+    if (requestUnsubscribe) {
+        requestUnsubscribe();
+        requestUnsubscribe = null;
+    }
+
+    stopMessageListeners();
+
     if (user) {
         loadMySupportRequests(user.uid);
     } else if (mySupportRequests) {
-
         mySupportRequests.textContent =
-            "Please log in to view your support messages.";
-
+            "Please log in to view your support conversations.";
     }
 
 });
 
 
 // =====================================
-// LOAD CUSTOMER SUPPORT REQUESTS
+// STOP MESSAGE LISTENERS
+// =====================================
+
+function stopMessageListeners() {
+
+    messageUnsubscribers.forEach((unsubscribe) => {
+        unsubscribe();
+    });
+
+    messageUnsubscribers = [];
+
+}
+
+
+// =====================================
+// LOAD CUSTOMER REQUESTS
 // =====================================
 
 function loadMySupportRequests(userId) {
@@ -78,7 +96,7 @@ function loadMySupportRequests(userId) {
     if (!mySupportRequests) return;
 
     mySupportRequests.textContent =
-        "Loading your support messages...";
+        "Loading your support inbox...";
 
     const supportQuery = query(
         collection(db, "supportRequests"),
@@ -86,22 +104,23 @@ function loadMySupportRequests(userId) {
         orderBy("createdAt", "desc")
     );
 
-    onSnapshot(
+    requestUnsubscribe = onSnapshot(
         supportQuery,
 
         (snapshot) => {
+
+            stopMessageListeners();
 
             mySupportRequests.replaceChildren();
 
             if (snapshot.empty) {
 
-                const emptyMessage =
-                    document.createElement("p");
+                const empty = document.createElement("p");
 
-                emptyMessage.textContent =
-                    "You have not submitted any support requests yet.";
+                empty.textContent =
+                    "You have no support conversations yet.";
 
-                mySupportRequests.appendChild(emptyMessage);
+                mySupportRequests.appendChild(empty);
 
                 return;
             }
@@ -110,101 +129,12 @@ function loadMySupportRequests(userId) {
 
                 const request = requestDoc.data();
 
-                const card =
-                    document.createElement("div");
+                const requestId = requestDoc.id;
 
-                card.className = "customer-support-card";
-
-
-                // Original message
-
-                const subject =
-                    document.createElement("h4");
-
-                subject.textContent =
-                    request.subject || "Support Request";
-
-                const message =
-                    document.createElement("p");
-
-                message.textContent =
-                    request.message || "";
-
-                const status =
-                    document.createElement("p");
-
-                status.className = "customer-support-status";
-
-                status.textContent =
-                    "Status: " +
-                    (request.status || "open");
-
-
-                card.appendChild(subject);
-                card.appendChild(message);
-                card.appendChild(status);
-
-
-                // Admin reply
-
-                const replySection =
-                    document.createElement("div");
-
-                replySection.className =
-                    "customer-admin-reply";
-
-                const replyHeading =
-                    document.createElement("h4");
-
-                replyHeading.textContent =
-                    "AlQlic Support Reply";
-
-                replySection.appendChild(replyHeading);
-
-
-                if (request.adminReply) {
-
-                    const replyText =
-                        document.createElement("p");
-
-                    replyText.textContent =
-                        request.adminReply;
-
-                    replySection.appendChild(replyText);
-
-
-                    if (
-                        request.repliedAt &&
-                        typeof request.repliedAt.toDate === "function"
-                    ) {
-
-                        const replyDate =
-                            document.createElement("small");
-
-                        replyDate.textContent =
-                            "Replied: " +
-                            request.repliedAt.toDate().toLocaleString();
-
-                        replySection.appendChild(replyDate);
-
-                    }
-
-                } else {
-
-                    const waitingMessage =
-                        document.createElement("p");
-
-                    waitingMessage.textContent =
-                        "Our support team has not replied yet. Please check back later.";
-
-                    replySection.appendChild(waitingMessage);
-
-                }
-
-
-                card.appendChild(replySection);
-
-                mySupportRequests.appendChild(card);
+                createConversationCard(
+                    requestId,
+                    request
+                );
 
             });
 
@@ -213,22 +143,319 @@ function loadMySupportRequests(userId) {
         (error) => {
 
             console.error(
-                "Error loading customer support requests:",
+                "Error loading support inbox:",
                 error
             );
 
             mySupportRequests.textContent =
-                "Unable to load your support messages. Please refresh the page.";
+                "Unable to load your support inbox. Please refresh the page.";
 
         }
-
     );
 
 }
 
 
 // =====================================
-// SUBMIT SUPPORT REQUEST
+// CREATE CONVERSATION CARD
+// =====================================
+
+function createConversationCard(requestId, request) {
+
+    const card = document.createElement("div");
+
+    card.className = "customer-support-card";
+
+    const heading = document.createElement("h3");
+
+    heading.textContent =
+        request.subject || "Support Request";
+
+    const originalMessage = document.createElement("div");
+
+    originalMessage.className = "customer-chat-message customer-message";
+
+    const originalLabel = document.createElement("strong");
+
+    originalLabel.textContent = "You";
+
+    const originalText = document.createElement("p");
+
+    originalText.textContent = request.message || "";
+
+    originalMessage.append(
+        originalLabel,
+        originalText
+    );
+
+    const status = document.createElement("p");
+
+    status.className = "customer-support-status";
+
+    status.textContent =
+        "Status: " + (request.status || "open");
+
+    const conversationTitle = document.createElement("h4");
+
+    conversationTitle.textContent =
+        "Conversation with AlQlic Support";
+
+    const messagesContainer = document.createElement("div");
+
+    messagesContainer.className = "support-chat-messages";
+
+    // Display the old administrator reply if one exists.
+    // This preserves replies sent before the inbox upgrade.
+
+    if (request.adminReply) {
+
+        const oldReply = createMessageBubble(
+            request.adminReply,
+            "admin",
+            request.repliedAt
+        );
+
+        messagesContainer.appendChild(oldReply);
+
+    }
+
+    const input = document.createElement("textarea");
+
+    input.className = "support-chat-input";
+
+    input.placeholder =
+        "Write a message to AlQlic Support...";
+
+    input.rows = 3;
+
+    const sendButton = document.createElement("button");
+
+    sendButton.type = "button";
+
+    sendButton.className = "support-chat-send";
+
+    sendButton.textContent = "Send Message";
+
+    const feedback = document.createElement("p");
+
+    feedback.className = "support-chat-feedback";
+
+    card.append(
+        heading,
+        originalMessage,
+        status,
+        conversationTitle,
+        messagesContainer,
+        input,
+        sendButton,
+        feedback
+    );
+
+    mySupportRequests.appendChild(card);
+
+
+    // =================================
+    // LOAD LIVE CONVERSATION
+    // =================================
+
+    const messagesQuery = query(
+        collection(
+            db,
+            "supportRequests",
+            requestId,
+            "messages"
+        ),
+        orderBy("createdAt", "asc")
+    );
+
+    const unsubscribe = onSnapshot(
+        messagesQuery,
+
+        (snapshot) => {
+
+            messagesContainer.replaceChildren();
+
+            // Preserve the previous single admin reply.
+            if (request.adminReply) {
+
+                messagesContainer.appendChild(
+                    createMessageBubble(
+                        request.adminReply,
+                        "admin",
+                        request.repliedAt
+                    )
+                );
+
+            }
+
+            snapshot.forEach((messageDoc) => {
+
+                const message = messageDoc.data();
+
+                messagesContainer.appendChild(
+                    createMessageBubble(
+                        message.message,
+                        message.senderRole,
+                        message.createdAt
+                    )
+                );
+
+            });
+
+            messagesContainer.scrollTop =
+                messagesContainer.scrollHeight;
+
+        },
+
+        (error) => {
+
+            console.error(
+                "Error loading conversation:",
+                error
+            );
+
+            feedback.textContent =
+                "Unable to load conversation messages.";
+
+        }
+    );
+
+    messageUnsubscribers.push(unsubscribe);
+
+
+    // =================================
+    // SEND CUSTOMER MESSAGE
+    // =================================
+
+    sendButton.addEventListener("click", async () => {
+
+        const messageText = input.value.trim();
+
+        if (!messageText) {
+
+            feedback.textContent =
+                "Please type a message first.";
+
+            return;
+
+        }
+
+        if (messageText.length > 5000) {
+
+            feedback.textContent =
+                "Your message cannot exceed 5000 characters.";
+
+            return;
+
+        }
+
+        if (!currentUser) {
+
+            feedback.textContent =
+                "Please log in again.";
+
+            return;
+
+        }
+
+        sendButton.disabled = true;
+
+        sendButton.textContent = "Sending...";
+
+        feedback.textContent = "";
+
+        try {
+
+            await addDoc(
+                collection(
+                    db,
+                    "supportRequests",
+                    requestId,
+                    "messages"
+                ),
+                {
+                    message: messageText,
+                    senderId: currentUser.uid,
+                    senderRole: "customer",
+                    createdAt: serverTimestamp()
+                }
+            );
+
+            input.value = "";
+
+            feedback.textContent =
+                "Message sent successfully.";
+
+        } catch (error) {
+
+            console.error(
+                "Error sending customer message:",
+                error
+            );
+
+            feedback.textContent =
+                "Unable to send your message. Please try again.";
+
+        } finally {
+
+            sendButton.disabled = false;
+
+            sendButton.textContent = "Send Message";
+
+        }
+
+    });
+
+}
+
+
+// =====================================
+// CREATE CHAT MESSAGE
+// =====================================
+
+function createMessageBubble(message, senderRole, timestamp) {
+
+    const bubble = document.createElement("div");
+
+    bubble.className =
+        senderRole === "admin"
+            ? "customer-chat-message admin-message"
+            : "customer-chat-message customer-message";
+
+    const sender = document.createElement("strong");
+
+    sender.textContent =
+        senderRole === "admin"
+            ? "AlQlic Support"
+            : "You";
+
+    const text = document.createElement("p");
+
+    text.textContent = message || "";
+
+    bubble.append(sender, text);
+
+    if (
+        timestamp &&
+        typeof timestamp.toDate === "function"
+    ) {
+
+        const date = document.createElement("small");
+
+        date.textContent =
+            timestamp.toDate().toLocaleString();
+
+        bubble.appendChild(date);
+
+    }
+
+    return bubble;
+
+}
+
+
+// =====================================
+// SUBMIT NEW SUPPORT REQUEST
 // =====================================
 
 if (contactForm) {
@@ -236,7 +463,6 @@ if (contactForm) {
     contactForm.addEventListener("submit", async (event) => {
 
         event.preventDefault();
-
 
         const name =
             contactForm.elements["name"].value.trim();
@@ -250,9 +476,6 @@ if (contactForm) {
         const message =
             contactForm.elements["message"].value.trim();
 
-
-        // Validate fields
-
         if (!name || !email || !subject || !message) {
 
             showMessage(
@@ -263,7 +486,6 @@ if (contactForm) {
             return;
 
         }
-
 
         if (!contactForm.elements["email"].checkValidity()) {
 
@@ -276,18 +498,16 @@ if (contactForm) {
 
         }
 
-
         if (!currentUser) {
 
             showMessage(
-                "Please log in to your AlQlic account before contacting support.",
+                "Please log in before contacting support.",
                 "error"
             );
 
             return;
 
         }
-
 
         const submitButton =
             contactForm.querySelector('button[type="submit"]');
@@ -296,38 +516,27 @@ if (contactForm) {
 
         submitButton.textContent = "Sending...";
 
-
         try {
 
             await addDoc(
                 collection(db, "supportRequests"),
                 {
-
-                    name: name,
-
-                    email: email,
-
-                    subject: subject,
-
-                    message: message,
-
+                    name,
+                    email,
+                    subject,
+                    message,
                     userId: currentUser.uid,
-
                     status: "open",
-
                     createdAt: serverTimestamp()
-
                 }
             );
 
-
             showMessage(
-                "Your support request has been sent successfully. The AlQlic support team will review it.",
+                "Your support request has been sent successfully. You can continue the conversation in My Support Requests below.",
                 "success"
             );
 
             contactForm.reset();
-
 
         } catch (error) {
 
