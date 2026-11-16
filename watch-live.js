@@ -294,22 +294,372 @@ async function loadStream() {
 // JOIN LIVE
 // =====================================================
 
+
 async function joinLive() {
 
     if (streamEnded) {
         return;
     }
 
+    console.log("📡 Joining live stream...");
 
-    console.log(
-        "📡 Joining live stream..."
+    peerConnection = new RTCPeerConnection(rtcConfig);
+
+    // Store host candidates that arrive before the answer.
+    let pendingHostCandidates = [];
+
+    let remoteDescriptionReady = false;
+
+    let answerApplied = false;
+
+
+    // =================================================
+    // RECEIVE HOST MEDIA
+    // =================================================
+
+    peerConnection.ontrack = event => {
+
+        console.log("🎥 Host media received");
+
+        if (
+            event.streams &&
+            event.streams[0] &&
+            remoteVideo
+        ) {
+
+            remoteVideo.srcObject = event.streams[0];
+
+            remoteVideo.play().catch(error => {
+
+                console.log(
+                    "Video play waiting for user interaction:",
+                    error
+                );
+
+            });
+
+        }
+
+    };
+
+
+    // =================================================
+    // VIEWER ICE CANDIDATES
+    // =================================================
+
+    peerConnection.onicecandidate = async event => {
+
+        if (!event.candidate) {
+            return;
+        }
+
+        try {
+
+            await addDoc(
+
+                collection(
+                    db,
+                    "liveStreams",
+                    streamId,
+                    "viewers",
+                    viewerId,
+                    "viewerCandidates"
+                ),
+
+                event.candidate.toJSON()
+
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Viewer ICE error:",
+                error
+            );
+
+        }
+
+    };
+
+
+    // =================================================
+    // CONNECTION STATE
+    // =================================================
+
+    peerConnection.onconnectionstatechange = () => {
+
+        if (!peerConnection) {
+            return;
+        }
+
+        console.log(
+            "WebRTC connection:",
+            peerConnection.connectionState
+        );
+
+        if (
+            peerConnection.connectionState === "failed"
+        ) {
+
+            console.error(
+                "WebRTC connection failed."
+            );
+
+        }
+
+    };
+
+
+    // =================================================
+    // CREATE OFFER
+    // =================================================
+
+    const offer = await peerConnection.createOffer({
+
+        offerToReceiveAudio: true,
+
+        offerToReceiveVideo: true
+
+    });
+
+
+    await peerConnection.setLocalDescription(offer);
+
+
+    // =================================================
+    // SAVE OFFER
+    // =================================================
+
+    viewerOfferRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "offers",
+        viewerId
     );
 
 
-    peerConnection =
-        new RTCPeerConnection(
-            rtcConfig
-        );
+    await setDoc(
+        viewerOfferRef,
+        {
+
+            type: offer.type,
+
+            sdp: offer.sdp,
+
+            viewerId: viewerId,
+
+            createdAt: serverTimestamp()
+
+        }
+    );
+
+
+    console.log("📤 Viewer offer sent");
+
+
+    // =================================================
+    // VIEWER ANSWER DOCUMENT
+    // =================================================
+
+    viewerAnswerRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers",
+        viewerId
+    );
+
+
+    // =================================================
+    // RECEIVE HOST ICE CANDIDATES
+    // =================================================
+
+    const hostCandidatesRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers",
+        viewerId,
+        "hostCandidates"
+    );
+
+
+    onSnapshot(
+        hostCandidatesRef,
+        async snapshot => {
+
+            for (const change of snapshot.docChanges()) {
+
+                if (change.type !== "added") {
+                    continue;
+                }
+
+                const candidateData = change.doc.data();
+
+                try {
+
+                    if (
+                        !peerConnection ||
+                        !candidateData
+                    ) {
+                        continue;
+                    }
+
+
+                    // If the host answer is not ready,
+                    // save this candidate temporarily.
+
+                    if (!remoteDescriptionReady) {
+
+                        pendingHostCandidates.push(
+                            candidateData
+                        );
+
+                        continue;
+
+                    }
+
+
+                    await peerConnection.addIceCandidate(
+                        new RTCIceCandidate(candidateData)
+                    );
+
+
+                    console.log(
+                        "✅ Host ICE candidate added"
+                    );
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Host ICE error:",
+                        error
+                    );
+
+                }
+
+            }
+
+        },
+        error => {
+
+            console.error(
+                "Host ICE listener error:",
+                error
+            );
+
+        }
+    );
+
+
+    // =================================================
+    // RECEIVE HOST ANSWER
+    // =================================================
+
+    onSnapshot(
+        viewerAnswerRef,
+        async snapshot => {
+
+            if (
+                !snapshot.exists() ||
+                !peerConnection ||
+                answerApplied
+            ) {
+                return;
+            }
+
+
+            const data = snapshot.data();
+
+
+            if (!data.answer) {
+                return;
+            }
+
+
+            try {
+
+                answerApplied = true;
+
+
+                await peerConnection.setRemoteDescription(
+
+                    new RTCSessionDescription(
+                        data.answer
+                    )
+
+                );
+
+
+                remoteDescriptionReady = true;
+
+
+                console.log(
+                    "📥 Host answer received"
+                );
+
+
+                // Add all host candidates that arrived early.
+
+                for (
+                    const candidateData of pendingHostCandidates
+                ) {
+
+                    try {
+
+                        await peerConnection.addIceCandidate(
+
+                            new RTCIceCandidate(
+                                candidateData
+                            )
+
+                        );
+
+                    } catch (error) {
+
+                        console.error(
+                            "Pending host ICE error:",
+                            error
+                        );
+
+                    }
+
+                }
+
+
+                pendingHostCandidates = [];
+
+
+                console.log(
+                    "✅ Pending host ICE candidates processed"
+                );
+
+
+            } catch (error) {
+
+                answerApplied = false;
+
+                console.error(
+                    "Remote description error:",
+                    error
+                );
+
+            }
+
+        },
+        error => {
+
+            console.error(
+                "Host answer listener error:",
+                error
+            );
+
+        }
+    );
+
+}
 
 
     // =================================================
