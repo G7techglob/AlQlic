@@ -292,74 +292,49 @@ async function loadHostStream(user) {
         // WATCH VIEWERS
         // =================================================
 
-        onSnapshot(
-            collection(
-                db,
-                "liveStreams",
-                streamId,
-                "viewers"
-            ),
-            (snapshot) => {
+onSnapshot(
+    collection(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers"
+    ),
+    snapshot => {
 
-                const count =
-                    snapshot.size;
-
-
-                if (viewerCount) {
-
-                    viewerCount.textContent =
-                        count;
-
-                }
-
-
-                updateDoc(
-                    streamRef,
-                    {
-                        viewerCount: count
-                    }
-                ).catch(error => {
-
-                    console.error(
-                        "Viewer count update error:",
-                        error
-                    );
-
-                });
-
+        const count = snapshot.docs.filter(
+            viewerDoc => {
+                return viewerDoc.data().status === "connected";
             }
-        );
+        ).length;
 
+        if (viewerCount) {
+            viewerCount.textContent = count;
+        }
 
-        console.log(
-            "✅ Host stream loaded:",
-            streamId
-        );
+        updateDoc(
+            streamRef,
+            {
+                viewerCount: count
+            }
+        ).catch(error => {
 
+            console.error(
+                "Viewer count update error:",
+                error
+            );
 
-        return true;
+        });
 
-
-    } catch (error) {
+    },
+    error => {
 
         console.error(
-            "Load host stream error:",
+            "Viewer count listener error:",
             error
         );
 
-        alert(
-            "Unable to load your live stream."
-        );
-
-        window.location.replace(
-            "stream.html"
-        );
-
-        return false;
-
     }
-
-}
+);
 
 
 // =====================================================
