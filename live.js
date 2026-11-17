@@ -40,6 +40,9 @@ const title = document.getElementById("title");
 const description = document.getElementById("description");
 const viewerCount = document.getElementById("viewerCount");
 
+const liveLikeCount = document.getElementById("liveLikeCount");
+const liveLikesOverlay = document.getElementById("liveLikesOverlay");
+
 const micBtn = document.getElementById("micBtn");
 const cameraBtn = document.getElementById("cameraBtn");
 const switchCameraBtn = document.getElementById("switchCameraBtn");
@@ -74,6 +77,9 @@ let shouldSaveVideo = false;
 let unsubscribeViewers = null;
 let unsubscribeOffers = null;
 let unsubscribeMessages = null;
+
+let unsubscribeStreamStats = null;
+let unsubscribeLikeEvents = null;
 
 
 // =====================================================
@@ -131,6 +137,7 @@ auth.onAuthStateChanged(async user => {
 
         startSignaling();
         startLiveChat();
+        startLiveReactions();
 
     } catch (error) {
 
@@ -217,6 +224,10 @@ async function loadHostStream(user) {
             viewerCount.textContent = stream.viewerCount || 0;
         }
 
+        if (liveLikeCount) {
+            liveLikeCount.textContent = stream.likes || 0;
+        }
+
 
         // WATCH VIEWER COUNT
 
@@ -278,6 +289,140 @@ async function loadHostStream(user) {
 
 
 // =====================================================
+// LIVE LIKES AND FLOATING HEARTS
+// =====================================================
+
+function startLiveReactions() {
+
+    if (!streamId) {
+        return;
+    }
+
+
+    // LISTEN FOR LIVE LIKES COUNTER
+
+    const streamRef = doc(
+        db,
+        "liveStreams",
+        streamId
+    );
+
+    unsubscribeStreamStats = onSnapshot(
+        streamRef,
+
+        snapshot => {
+
+            if (!snapshot.exists()) {
+                return;
+            }
+
+            const streamData = snapshot.data();
+
+            if (liveLikeCount) {
+                liveLikeCount.textContent = streamData.likes || 0;
+            }
+
+            if (viewerCount) {
+                viewerCount.textContent = streamData.viewerCount || 0;
+            }
+
+        },
+
+        error => {
+
+            console.error(
+                "Live statistics listener error:",
+                error
+            );
+
+        }
+    );
+
+
+    // LISTEN FOR FLOATING HEART EVENTS
+
+    const likeEventsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "likeEvents"
+    );
+
+    let firstLikeSnapshot = true;
+
+    unsubscribeLikeEvents = onSnapshot(
+        likeEventsRef,
+
+        snapshot => {
+
+            // Do not replay old hearts when the host opens the page.
+
+            if (firstLikeSnapshot) {
+                firstLikeSnapshot = false;
+                return;
+            }
+
+            snapshot.docChanges().forEach(change => {
+
+                if (change.type !== "added") {
+                    return;
+                }
+
+                const likeData = change.doc.data();
+
+                showHostFloatingHeart(
+                    likeData.emoji || "❤️"
+                );
+
+            });
+
+        },
+
+        error => {
+
+            console.error(
+                "Live like events listener error:",
+                error
+            );
+
+        }
+    );
+
+}
+
+
+// =====================================================
+// SHOW FLOATING HEART ON HOST SCREEN
+// =====================================================
+
+function showHostFloatingHeart(emoji = "❤️") {
+
+    if (!liveLikesOverlay) {
+        return;
+    }
+
+    const heart = document.createElement("div");
+
+    heart.className = "floating-live-heart";
+
+    heart.textContent = emoji;
+
+    heart.style.left = `${15 + Math.random() * 65}%`;
+
+    heart.style.bottom = "10px";
+
+    liveLikesOverlay.appendChild(heart);
+
+    setTimeout(() => {
+
+        heart.remove();
+
+    }, 2500);
+
+}
+
+
+// =====================================================
 // START CAMERA
 // =====================================================
 
@@ -285,8 +430,10 @@ async function startCamera(preserveRecording = false) {
 
     try {
 
-        if (!navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia) {
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia
+        ) {
 
             throw new Error(
                 "Camera access is unavailable. Use HTTPS and a supported browser."
@@ -396,6 +543,7 @@ async function startCamera(preserveRecording = false) {
         console.log("✅ Host camera and microphone ready.");
 
         localStream.getTracks().forEach(track => {
+
             console.log(
                 "Media track:",
                 track.kind,
@@ -403,6 +551,7 @@ async function startCamera(preserveRecording = false) {
                 track.readyState,
                 track.enabled
             );
+
         });
 
 
@@ -419,13 +568,21 @@ async function startCamera(preserveRecording = false) {
         let message = "Unable to access your camera and microphone.";
 
         if (error.name === "NotAllowedError") {
+
             message = "Camera permission was denied. Allow camera and microphone access in your browser.";
+
         } else if (error.name === "NotFoundError") {
+
             message = "No camera or microphone was found on this device.";
+
         } else if (error.name === "NotReadableError") {
+
             message = "Your camera may already be in use by another application.";
+
         } else if (error.name === "OverconstrainedError") {
+
             message = "The selected camera is not available.";
+
         }
 
         alert(message);
@@ -1170,6 +1327,40 @@ if (endLiveBtn) {
 
 
 // =====================================================
+// STOP FIRESTORE LISTENERS
+// =====================================================
+
+function stopLiveListeners() {
+
+    if (unsubscribeViewers) {
+        unsubscribeViewers();
+        unsubscribeViewers = null;
+    }
+
+    if (unsubscribeOffers) {
+        unsubscribeOffers();
+        unsubscribeOffers = null;
+    }
+
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
+    }
+
+    if (unsubscribeStreamStats) {
+        unsubscribeStreamStats();
+        unsubscribeStreamStats = null;
+    }
+
+    if (unsubscribeLikeEvents) {
+        unsubscribeLikeEvents();
+        unsubscribeLikeEvents = null;
+    }
+
+}
+
+
+// =====================================================
 // END LIVE
 // =====================================================
 
@@ -1255,20 +1446,7 @@ async function endLive() {
 
         // STOP FIRESTORE LISTENERS
 
-        if (unsubscribeViewers) {
-            unsubscribeViewers();
-            unsubscribeViewers = null;
-        }
-
-        if (unsubscribeOffers) {
-            unsubscribeOffers();
-            unsubscribeOffers = null;
-        }
-
-        if (unsubscribeMessages) {
-            unsubscribeMessages();
-            unsubscribeMessages = null;
-        }
+        stopLiveListeners();
 
 
         // MARK STREAM ENDED
@@ -1343,17 +1521,7 @@ if (backBtn) {
 
         peerConnections = {};
 
-        if (unsubscribeViewers) {
-            unsubscribeViewers();
-        }
-
-        if (unsubscribeOffers) {
-            unsubscribeOffers();
-        }
-
-        if (unsubscribeMessages) {
-            unsubscribeMessages();
-        }
+        stopLiveListeners();
 
         window.location.replace("stream.html");
 
@@ -1569,6 +1737,8 @@ if (chatInput) {
 // =====================================================
 
 window.addEventListener("beforeunload", () => {
+
+    stopLiveListeners();
 
     if (localStream) {
 
