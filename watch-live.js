@@ -15,7 +15,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 
-console.log("✅ Watch Live JS loaded");
+console.log("AlQlic Watch Live JS loaded");
 
 
 // =====================================================
@@ -27,20 +27,36 @@ const streamId = params.get("streamId");
 
 
 // =====================================================
-// ELEMENTS
+// PAGE ELEMENTS
 // =====================================================
 
 const remoteVideo = document.getElementById("remoteVideo");
+
 const title = document.getElementById("title");
 const streamTitle = document.getElementById("streamTitle");
+
 const viewerCount = document.getElementById("viewerCount");
 const hostInfo = document.getElementById("hostInfo");
+
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 const sendChatBtn = document.getElementById("sendChatBtn");
+
 const likeBtn = document.getElementById("likeBtn");
+const likeCount = document.getElementById("likeCount");
+
+const liveCommentsOverlay =
+    document.getElementById("liveCommentsOverlay");
+
+const liveLikesOverlay =
+    document.getElementById("liveLikesOverlay");
+
+const liveGiftsOverlay =
+    document.getElementById("liveGiftsOverlay");
+
 const giftBtn = document.getElementById("giftBtn");
 const shareBtn = document.getElementById("shareBtn");
+const backBtn = document.getElementById("backBtn");
 
 
 // =====================================================
@@ -48,6 +64,7 @@ const shareBtn = document.getElementById("shareBtn");
 // =====================================================
 
 let peerConnection = null;
+
 let viewerId = null;
 let currentUser = null;
 let creatorId = null;
@@ -61,6 +78,7 @@ let cleanupStarted = false;
 let unsubscribeAnswer = null;
 let unsubscribeHostCandidates = null;
 let unsubscribeChat = null;
+let unsubscribeStreamStats = null;
 
 
 // =====================================================
@@ -93,6 +111,21 @@ if (!streamId) {
 
 
 // =====================================================
+// BACK BUTTON
+// =====================================================
+
+if (backBtn) {
+
+    backBtn.addEventListener("click", () => {
+
+        window.history.back();
+
+    });
+
+}
+
+
+// =====================================================
 // AUTHENTICATION
 // =====================================================
 
@@ -105,6 +138,7 @@ auth.onAuthStateChanged(async user => {
         window.location.href = "login.html";
 
         return;
+
     }
 
     currentUser = user;
@@ -121,6 +155,8 @@ auth.onAuthStateChanged(async user => {
         await joinLive();
 
         listenForChat();
+
+        listenForStreamStats();
 
     } catch (error) {
 
@@ -156,6 +192,7 @@ async function loadStream() {
         window.location.href = "stream.html";
 
         return;
+
     }
 
     const stream = streamSnap.data();
@@ -171,6 +208,7 @@ async function loadStream() {
         window.location.href = "stream.html";
 
         return;
+
     }
 
     const streamName = stream.title || "AlQlic Live";
@@ -191,12 +229,66 @@ async function loadStream() {
         hostInfo.textContent = stream.hostName || "AlQlic User";
     }
 
-    if (likeBtn) {
-
-        const likes = stream.likes || 0;
-
-        likeBtn.innerHTML = `❤️ <span>${likes}</span>`;
+    if (likeCount) {
+        likeCount.textContent = stream.likes || 0;
     }
+
+}
+
+
+// =====================================================
+// LIVE STREAM STATISTICS
+// =====================================================
+
+function listenForStreamStats() {
+
+    const streamRef = doc(
+        db,
+        "liveStreams",
+        streamId
+    );
+
+    unsubscribeStreamStats = onSnapshot(
+
+        streamRef,
+
+        snapshot => {
+
+            if (!snapshot.exists()) {
+                return;
+            }
+
+            const stream = snapshot.data();
+
+            if (viewerCount) {
+                viewerCount.textContent = stream.viewerCount || 0;
+            }
+
+            if (likeCount) {
+                likeCount.textContent = stream.likes || 0;
+            }
+
+            if (stream.status !== "live" && !streamEnded) {
+
+                streamEnded = true;
+
+                alert("This live stream has ended.");
+
+                cleanupViewer();
+
+                window.location.href = "stream.html";
+
+            }
+
+        },
+
+        error => {
+
+            console.error("Live statistics error:", error);
+
+        }
+
+    );
 
 }
 
@@ -211,7 +303,7 @@ async function joinLive() {
         return;
     }
 
-    console.log("📡 Joining live stream...");
+    console.log("Joining AlQlic live stream...");
 
     peerConnection = new RTCPeerConnection(rtcConfig);
 
@@ -226,7 +318,7 @@ async function joinLive() {
 
     peerConnection.ontrack = event => {
 
-        console.log("🎥 Host media received");
+        console.log("Host media received");
 
         if (
             event.streams &&
@@ -348,7 +440,7 @@ async function joinLive() {
 
     });
 
-    console.log("📤 Viewer offer sent");
+    console.log("Viewer offer sent");
 
 
     // =================================================
@@ -402,13 +494,14 @@ async function joinLive() {
                         pendingHostCandidates.push(candidateData);
 
                         continue;
+
                     }
 
                     await peerConnection.addIceCandidate(
                         new RTCIceCandidate(candidateData)
                     );
 
-                    console.log("✅ Host ICE candidate added");
+                    console.log("Host ICE candidate added");
 
                 } catch (error) {
 
@@ -465,7 +558,7 @@ async function joinLive() {
 
                 remoteDescriptionReady = true;
 
-                console.log("📥 Host answer received");
+                console.log("Host answer received");
 
 
                 // PROCESS HOST ICE CANDIDATES
@@ -494,7 +587,7 @@ async function joinLive() {
 
                 pendingHostCandidates = [];
 
-                console.log("✅ Host ICE candidates processed");
+                console.log("Host ICE candidates processed");
 
             } catch (error) {
 
@@ -558,6 +651,9 @@ function listenForChat() {
 
             });
 
+
+            // DISPLAY CHAT PANEL
+
             chatMessages.innerHTML = "";
 
             messages.forEach(comment => {
@@ -584,6 +680,40 @@ function listenForChat() {
             });
 
             chatMessages.scrollTop = chatMessages.scrollHeight;
+
+
+            // DISPLAY COMMENTS OVER THE VIDEO
+
+            if (liveCommentsOverlay) {
+
+                liveCommentsOverlay.innerHTML = "";
+
+                const recentMessages = messages.slice(-4);
+
+                recentMessages.forEach(comment => {
+
+                    const floatingComment = document.createElement("div");
+
+                    floatingComment.className = "floating-live-comment";
+
+                    const username = escapeHTML(
+                        comment.username || "User"
+                    );
+
+                    const messageText = escapeHTML(
+                        comment.text || ""
+                    );
+
+                    floatingComment.innerHTML = `
+                        <strong>${username}</strong>
+                        <span>${messageText}</span>
+                    `;
+
+                    liveCommentsOverlay.appendChild(floatingComment);
+
+                });
+
+            }
 
         },
 
@@ -684,7 +814,7 @@ async function sendChat() {
 
 
 // =====================================================
-// LIKE
+// LIKE BUTTON
 // =====================================================
 
 if (likeBtn) {
@@ -711,17 +841,47 @@ if (likeBtn) {
 
             );
 
-            likeBtn.disabled = true;
-
-            likeBtn.innerHTML = "❤️ Liked";
+            showFloatingHeart();
 
         } catch (error) {
 
             console.error("Like error:", error);
 
+            alert("Unable to like this live stream.");
+
         }
 
     });
+
+}
+
+
+// =====================================================
+// FLOATING HEART ANIMATION
+// =====================================================
+
+function showFloatingHeart() {
+
+    if (!liveLikesOverlay) {
+        return;
+    }
+
+    const heart = document.createElement("span");
+
+    heart.className = "floating-live-heart";
+
+    heart.textContent = "❤️";
+
+    heart.style.right =
+        Math.floor(Math.random() * 55) + "px";
+
+    liveLikesOverlay.appendChild(heart);
+
+    setTimeout(() => {
+
+        heart.remove();
+
+    }, 2200);
 
 }
 
@@ -739,6 +899,7 @@ if (giftBtn) {
             alert("Creator information is unavailable.");
 
             return;
+
         }
 
         const giftURL =
@@ -753,7 +914,7 @@ if (giftBtn) {
 
 
 // =====================================================
-// SHARE
+// SHARE LIVE STREAM
 // =====================================================
 
 if (shareBtn) {
@@ -828,24 +989,41 @@ async function cleanupViewer() {
 
     cleanupStarted = true;
 
-    console.log("🧹 Cleaning up viewer connection...");
+    console.log("Cleaning up viewer connection...");
 
 
     // STOP FIRESTORE LISTENERS
 
     if (unsubscribeAnswer) {
+
         unsubscribeAnswer();
+
         unsubscribeAnswer = null;
+
     }
 
     if (unsubscribeHostCandidates) {
+
         unsubscribeHostCandidates();
+
         unsubscribeHostCandidates = null;
+
     }
 
     if (unsubscribeChat) {
+
         unsubscribeChat();
+
         unsubscribeChat = null;
+
+    }
+
+    if (unsubscribeStreamStats) {
+
+        unsubscribeStreamStats();
+
+        unsubscribeStreamStats = null;
+
     }
 
 
@@ -856,7 +1034,9 @@ async function cleanupViewer() {
         try {
 
             peerConnection.ontrack = null;
+
             peerConnection.onicecandidate = null;
+
             peerConnection.onconnectionstatechange = null;
 
             peerConnection.close();
@@ -872,7 +1052,7 @@ async function cleanupViewer() {
     }
 
 
-    // REMOVE VIEWER DOCUMENT
+    // REMOVE VIEWER DOCUMENTS
 
     const cleanupTasks = [];
 
@@ -907,7 +1087,7 @@ async function cleanupViewer() {
 
     });
 
-    console.log("✅ Viewer cleanup completed");
+    console.log("Viewer cleanup completed");
 
 }
 
