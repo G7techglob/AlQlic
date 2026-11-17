@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,121 +8,135 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     >
 
-    <title>Watch Live</title>
+    <title>AlQlic Live</title>
 
-    <link
-        rel="stylesheet"
-        href="watch-live.css"
-    >
+    <link rel="stylesheet" href="watch-live.css">
 
 </head>
 
 <body>
 
-<header class="watch-header">
+<main class="live-screen">
 
-    <button
-        onclick="history.back()"
-        type="button"
-    >
-        ←
-    </button>
+    <!-- FULL-SCREEN LIVE VIDEO -->
 
-    <div id="streamTitle">
-        Live Stream
-    </div>
+    <video
+        id="remoteVideo"
+        autoplay
+        playsinline
+    ></video>
 
-</header>
+    <!-- DARK VIDEO OVERLAY -->
 
+    <div class="video-shade"></div>
 
-<main>
+    <!-- TOP INFORMATION -->
 
-    <div class="video-container">
+    <header class="watch-header">
 
-        <video
-            id="remoteVideo"
-            autoplay
-            playsinline
-            controls
-        ></video>
+        <button
+            id="backBtn"
+            type="button"
+        >
+            ←
+        </button>
 
-        <div class="live-overlay">
+        <div class="live-top-info">
 
-            <span>
-                LIVE
-            </span>
+            <div class="live-host-info" id="hostInfo">
+                Live Host
+            </div>
 
-            <span>
+            <div id="streamTitle">
+                Live Stream
+            </div>
 
-                👁
+        </div>
 
-                <span id="viewerCount">
-                    0
-                </span>
+        <div class="live-statistics">
 
+            <span class="live-label">LIVE</span>
+
+            <span class="viewer-total">
+                👁 <span id="viewerCount">0</span>
             </span>
 
         </div>
 
-    </div>
+    </header>
 
+    <!-- COMMENTS OVER VIDEO -->
 
-    <section class="stream-info">
+    <div
+        id="liveCommentsOverlay"
+        class="live-comments-overlay"
+    ></div>
 
-        <h2 id="title">
-            Loading...
-        </h2>
+    <!-- FLOATING HEARTS -->
 
-        <div id="hostInfo"></div>
+    <div
+        id="liveLikesOverlay"
+        class="live-likes-overlay"
+    ></div>
 
+    <!-- FLOATING GIFTS -->
 
-       
-           <div class="stream-actions">
+    <div
+        id="liveGiftsOverlay"
+        class="live-gifts-overlay"
+    ></div>
 
-    <button id="likeBtn" type="button">
-        ❤️ Like
-    </button>
+    <!-- BOTTOM CONTROLS -->
 
-    <button id="giftBtn" type="button">
-        🎁 Send Gift
-    </button>
+    <section class="live-bottom-panel">
 
-    <button id="shareBtn" type="button">
-        📤 Share
-    </button>
+        <div class="stream-info">
 
-</div>
-    </section>
+            <h2 id="title">Loading...</h2>
 
+        </div>
 
-    <section class="live-chat">
+        <section class="live-chat">
 
-        <h3>
-            Live Chat
-        </h3>
+            <div
+                id="chatMessages"
+                class="chat-messages"
+            ></div>
 
-        <div
-            id="chatMessages"
-            class="chat-messages"
-        ></div>
+            <div class="chat-input">
 
+                <input
+                    id="chatInput"
+                    type="text"
+                    placeholder="Say something..."
+                >
 
-        <div class="chat-input">
+                <button
+                    id="sendChatBtn"
+                    type="button"
+                >
+                    Send
+                </button>
 
-            <input
-                id="chatInput"
-                type="text"
-                placeholder="Say something..."
-            >
+            </div>
 
-            <button
-                id="sendChatBtn"
-                type="button"
-            >
-                Send
+        </section>
+
+        <div class="stream-actions">
+
+            <button id="likeBtn" type="button">
+                ❤️ <span id="likeCount">0</span>
+            </button>
+
+            <button id="giftBtn" type="button">
+                🎁
+            </button>
+
+            <button id="shareBtn" type="button">
+                📤
             </button>
 
         </div>
@@ -129,7 +144,6 @@
     </section>
 
 </main>
-
 
 <script
     type="module"
