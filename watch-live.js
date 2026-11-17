@@ -79,6 +79,7 @@ let unsubscribeAnswer = null;
 let unsubscribeHostCandidates = null;
 let unsubscribeChat = null;
 let unsubscribeStreamStats = null;
+let unsubscribeLikeEvents = null;
 
 
 // =====================================================
@@ -117,6 +118,8 @@ if (!streamId) {
 if (backBtn) {
 
     backBtn.addEventListener("click", () => {
+
+        cleanupViewer();
 
         window.history.back();
 
@@ -157,6 +160,8 @@ auth.onAuthStateChanged(async user => {
         listenForChat();
 
         listenForStreamStats();
+
+        listenForLikeEvents();
 
     } catch (error) {
 
@@ -814,7 +819,7 @@ async function sendChat() {
 
 
 // =====================================================
-// LIKE BUTTON
+// LIKE BUTTON — SYNCHRONIZED WITH HOST
 // =====================================================
 
 if (likeBtn) {
@@ -826,6 +831,8 @@ if (likeBtn) {
         }
 
         try {
+
+            // INCREASE TOTAL LIVE LIKES
 
             await updateDoc(
 
@@ -841,7 +848,29 @@ if (likeBtn) {
 
             );
 
-            showFloatingHeart();
+
+            // CREATE A HEART EVENT FOR HOST AND VIEWERS
+
+            await addDoc(
+
+                collection(
+                    db,
+                    "liveStreams",
+                    streamId,
+                    "likeEvents"
+                ),
+
+                {
+
+                    userId: currentUser.uid,
+
+                    emoji: "❤️",
+
+                    createdAt: serverTimestamp()
+
+                }
+
+            );
 
         } catch (error) {
 
@@ -857,10 +886,68 @@ if (likeBtn) {
 
 
 // =====================================================
+// LISTEN FOR LIVE HEART EVENTS
+// =====================================================
+
+function listenForLikeEvents() {
+
+    const likeEventsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "likeEvents"
+    );
+
+    let firstSnapshot = true;
+
+    unsubscribeLikeEvents = onSnapshot(
+
+        likeEventsRef,
+
+        snapshot => {
+
+            // DO NOT REPLAY OLD HEARTS WHEN JOINING
+
+            if (firstSnapshot) {
+
+                firstSnapshot = false;
+
+                return;
+
+            }
+
+            snapshot.docChanges().forEach(change => {
+
+                if (change.type !== "added") {
+                    return;
+                }
+
+                const eventData = change.doc.data();
+
+                showFloatingHeart(
+                    eventData.emoji || "❤️"
+                );
+
+            });
+
+        },
+
+        error => {
+
+            console.error("Like events listener error:", error);
+
+        }
+
+    );
+
+}
+
+
+// =====================================================
 // FLOATING HEART ANIMATION
 // =====================================================
 
-function showFloatingHeart() {
+function showFloatingHeart(emoji = "❤️") {
 
     if (!liveLikesOverlay) {
         return;
@@ -870,7 +957,7 @@ function showFloatingHeart() {
 
     heart.className = "floating-live-heart";
 
-    heart.textContent = "❤️";
+    heart.textContent = emoji;
 
     heart.style.right =
         Math.floor(Math.random() * 55) + "px";
@@ -881,7 +968,7 @@ function showFloatingHeart() {
 
         heart.remove();
 
-    }, 2200);
+    }, 2500);
 
 }
 
@@ -1023,6 +1110,14 @@ async function cleanupViewer() {
         unsubscribeStreamStats();
 
         unsubscribeStreamStats = null;
+
+    }
+
+    if (unsubscribeLikeEvents) {
+
+        unsubscribeLikeEvents();
+
+        unsubscribeLikeEvents = null;
 
     }
 
