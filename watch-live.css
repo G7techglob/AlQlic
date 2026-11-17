@@ -1,290 +1,344 @@
-/* =====================================================
-   WATCH LIVE
-===================================================== */
 
 * {
     box-sizing: border-box;
 }
 
+html,
 body {
+    width: 100%;
+    height: 100%;
     margin: 0;
-    font-family: Arial, sans-serif;
+    padding: 0;
+    overflow: hidden;
     background: #000;
     color: #fff;
+    font-family: Arial, sans-serif;
 }
 
+.live-screen {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: #000;
+}
 
-/* =====================================================
-   HEADER
-===================================================== */
+/* FULL SCREEN VIDEO */
+
+#remoteVideo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+    z-index: 1;
+}
+
+/* VIDEO DARK SHADE */
+
+.video-shade {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.55),
+        transparent 22%,
+        transparent 55%,
+        rgba(0, 0, 0, 0.65)
+    );
+}
+
+/* HEADER */
 
 .watch-header {
-    height: 55px;
+    position: absolute;
+    top: env(safe-area-inset-top, 0px);
+    left: 0;
+    right: 0;
+    z-index: 10;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 12px;
-    background: #111;
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    gap: 10px;
+    padding: 12px;
 }
 
-.watch-header button {
+.watch-header > button {
+    width: 38px;
+    height: 38px;
     border: none;
-    background: transparent;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
     color: #fff;
-    font-size: 25px;
-    cursor: pointer;
+    font-size: 24px;
+}
+
+.live-top-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.live-host-info {
+    font-size: 14px;
+    font-weight: bold;
 }
 
 #streamTitle {
-    flex: 1;
-    text-align: center;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-
-/* =====================================================
-   MAIN
-===================================================== */
-
-main {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-
-/* =====================================================
-   VIDEO
-===================================================== */
-
-.video-container {
-    position: relative;
-    width: 100%;
-    background: #000;
-    overflow: hidden;
-}
-
-#remoteVideo {
-    display: block;
-    width: 100%;
-    height: auto;
-    min-height: 250px;
-    max-height: 70vh;
-    object-fit: contain;
-    background: #000;
-}
-
-
-/* =====================================================
-   LIVE OVERLAY
-===================================================== */
-
-.live-overlay {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    right: 15px;
-
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    pointer-events: none;
-}
-
-.live-overlay > span:first-child {
-    background: #e00000;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 5px;
+    margin-top: 4px;
     font-size: 12px;
-    font-weight: bold;
-}
-
-.live-overlay > span:last-child {
-    background: rgba(0, 0, 0, 0.65);
-    padding: 6px 10px;
-    border-radius: 15px;
-    font-size: 13px;
-}
-
-
-/* =====================================================
-   STREAM INFO
-===================================================== */
-
-.stream-info {
-    padding: 15px;
-    background: #111;
-}
-
-.stream-info h2 {
-    margin: 0 0 8px;
-    font-size: 20px;
-}
-
-#hostInfo {
-    color: #aaa;
-    font-size: 14px;
-}
-
-
-/* =====================================================
-   ACTION BUTTONS
-===================================================== */
-
-.stream-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.stream-actions button {
-    border: none;
-    background: #222;
-    color: #fff;
-    padding: 10px 17px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.stream-actions button:active {
-    transform: scale(0.96);
-}
-
-.stream-actions button:disabled {
-    opacity: 0.7;
-    cursor: default;
-}
-
-
-/* =====================================================
-   LIVE CHAT
-===================================================== */
-
-.live-chat {
-    padding: 15px;
-    background: #151515;
-}
-
-.live-chat h3 {
-    margin: 0 0 12px;
-    font-size: 17px;
-}
-
-.chat-messages {
-    width: 100%;
-    height: 220px;
-    overflow-y: auto;
-
-    background: #0b0b0b;
-
-    border-radius: 10px;
-
-    padding: 10px;
-}
-
-
-/* =====================================================
-   CHAT MESSAGE
-===================================================== */
-
-.chat-message {
-    margin-bottom: 10px;
-    line-height: 1.4;
-    font-size: 14px;
-}
-
-.chat-message strong {
-    margin-right: 6px;
-}
-
-.chat-message span {
     color: #ddd;
 }
 
+.live-statistics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
-/* =====================================================
-   CHAT INPUT
-===================================================== */
+.live-label {
+    padding: 5px 8px;
+    background: #e53935;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.viewer-total {
+    padding: 6px 9px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* FLOATING COMMENTS */
+
+.live-comments-overlay {
+    position: absolute;
+    left: 12px;
+    bottom: 205px;
+    z-index: 8;
+    width: min(72%, 350px);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    pointer-events: none;
+}
+
+.floating-live-comment {
+    width: fit-content;
+    max-width: 100%;
+    padding: 7px 11px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    animation: commentAppear 0.3s ease;
+}
+
+.floating-live-comment strong {
+    color: #ff6b91;
+    margin-right: 5px;
+}
+
+/* FLOATING HEARTS */
+
+.live-likes-overlay {
+    position: absolute;
+    right: 20px;
+    bottom: 170px;
+    width: 100px;
+    height: 230px;
+    z-index: 9;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.floating-live-heart {
+    position: absolute;
+    bottom: 0;
+    right: 15px;
+    font-size: 30px;
+    animation: floatHeart 2s ease-out forwards;
+}
+
+/* FLOATING GIFTS */
+
+.live-gifts-overlay {
+    position: absolute;
+    right: 12px;
+    bottom: 210px;
+    z-index: 9;
+    width: 45%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.floating-live-gift {
+    max-width: 100%;
+    padding: 9px 12px;
+    border-radius: 18px;
+    background: rgba(255, 77, 109, 0.9);
+    color: white;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+    animation: commentAppear 0.4s ease;
+}
+
+/* BOTTOM PANEL */
+
+.live-bottom-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.85),
+        rgba(0, 0, 0, 0.25),
+        transparent
+    );
+}
+
+/* STREAM TITLE */
+
+.stream-info h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+/* CHAT */
+
+.live-chat {
+    width: min(100%, 380px);
+}
+
+.chat-messages {
+    height: 105px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    font-size: 12px;
+    scrollbar-width: none;
+}
+
+.chat-messages::-webkit-scrollbar {
+    display: none;
+}
 
 .chat-input {
     display: flex;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 7px;
 }
 
 .chat-input input {
     flex: 1;
-
     min-width: 0;
-
-    border: none;
+    padding: 11px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 22px;
     outline: none;
-
-    padding: 11px 12px;
-
-    border-radius: 20px;
-
-    background: #222;
-    color: #fff;
-
-    font-size: 14px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
 }
 
 .chat-input input::placeholder {
-    color: #888;
+    color: #ccc;
 }
 
 .chat-input button {
+    padding: 9px 15px;
     border: none;
-
-    padding: 10px 17px;
-
-    border-radius: 20px;
-
-    background: #1877f2;
-    color: #fff;
-
-    cursor: pointer;
+    border-radius: 22px;
+    background: #ff4d6d;
+    color: white;
 }
 
+/* ACTION BUTTONS */
 
-/* =====================================================
-   MOBILE
-===================================================== */
+.stream-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.stream-actions button {
+    min-width: 45px;
+    height: 42px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 22px;
+    background: rgba(35, 35, 35, 0.8);
+    color: white;
+    font-size: 17px;
+}
+
+/* ANIMATIONS */
+
+@keyframes commentAppear {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes floatHeart {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.7);
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-220px) scale(1.5);
+    }
+}
+
+/* SMALL SCREENS */
 
 @media (max-width: 600px) {
 
-    .watch-header {
-        height: 52px;
+    .live-comments-overlay {
+        bottom: 195px;
+        left: 8px;
+        width: 75%;
     }
 
-    #streamTitle {
-        font-size: 15px;
+    .live-gifts-overlay {
+        bottom: 200px;
+        right: 8px;
     }
 
-    #remoteVideo {
-        min-height: 230px;
-        height: 55vh;
-        object-fit: cover;
-    }
-
-    .stream-info {
-        padding: 12px;
-    }
-
-    .live-chat {
-        padding: 12px;
+    .live-bottom-panel {
+        padding-left: 9px;
+        padding-right: 9px;
     }
 
     .chat-messages {
-        height: 200px;
+        height: 95px;
     }
 
-  }
+    .stream-actions {
+        gap: 8px;
+    }
+
+}
