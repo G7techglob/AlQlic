@@ -99,9 +99,9 @@ body {
 
 #liveTitle {
     position: absolute;
-    left: 15px;
+    left: 10%;
     bottom: 105px;
-    width: calc(100% - 30px);
+    width: 80%;
     height: 38px;
     padding: 0 12px;
     border: 1px solid rgba(255,255,255,0.5);
@@ -112,7 +112,6 @@ body {
     font-size: 13px;
     z-index: 5;
 }
-
 #liveTitle::placeholder {
     color: #ddd;
 }
@@ -121,9 +120,9 @@ body {
 
 .start-live-btn {
     position: absolute;
-    left: 15px;
+    left: 20%;
     bottom: 25px;
-    width: calc(100% - 30px);
+    width: 60%;
     height: 42px;
     border: none;
     border-radius: 9px;
