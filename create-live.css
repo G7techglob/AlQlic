@@ -19,8 +19,6 @@ body {
     overflow: hidden;
 }
 
-/* MAIN CONTAINER */
-
 .create-live-container {
     position: fixed;
     inset: 0;
@@ -46,7 +44,7 @@ body {
     z-index: 1;
 }
 
-/* DARK OVERLAY FOR READABILITY */
+/* DARK OVERLAY */
 
 .create-live-container::after {
     content: "";
@@ -97,62 +95,41 @@ body {
     color: #fff;
 }
 
-/* LIVE TITLE */
+/* SMALL LIVE TITLE BOX */
 
 #liveTitle {
     position: absolute;
     left: 15px;
-    bottom: 215px;
+    bottom: 105px;
     width: calc(100% - 30px);
-    height: 48px;
-    padding: 0 15px;
+    height: 38px;
+    padding: 0 12px;
     border: 1px solid rgba(255,255,255,0.5);
-    border-radius: 10px;
+    border-radius: 8px;
     outline: none;
     background: rgba(0,0,0,0.55);
     color: #fff;
-    font-size: 15px;
+    font-size: 13px;
     z-index: 5;
 }
 
-#liveTitle::placeholder,
-#liveDescription::placeholder {
+#liveTitle::placeholder {
     color: #ddd;
 }
 
-/* DESCRIPTION */
-
-#liveDescription {
-    position: absolute;
-    left: 15px;
-    bottom: 90px;
-    width: calc(100% - 30px);
-    height: 110px;
-    padding: 13px 15px;
-    border: 1px solid rgba(255,255,255,0.5);
-    border-radius: 10px;
-    outline: none;
-    resize: none;
-    background: rgba(0,0,0,0.55);
-    color: #fff;
-    font-size: 14px;
-    line-height: 1.5;
-    z-index: 5;
-}
-
-/* START LIVE BUTTON */
+/* SMALL START LIVE BUTTON */
 
 .start-live-btn {
     position: absolute;
     left: 15px;
     bottom: 25px;
     width: calc(100% - 30px);
-    height: 52px;
+    height: 42px;
     border: none;
-    border-radius: 12px;
+    border-radius: 9px;
     background: #e53935;
     color: #fff;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     z-index: 5;
@@ -171,16 +148,11 @@ body {
 
 @media (max-width: 360px) {
     #liveTitle {
-        bottom: 205px;
-    }
-
-    #liveDescription {
-        bottom: 85px;
-        height: 105px;
+        bottom: 90px;
     }
 
     .start-live-btn {
         bottom: 18px;
-        height: 48px;
+        height: 40px;
     }
 }
