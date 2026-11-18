@@ -1,3 +1,4 @@
+
 import { auth, db } from "./firebase.js";
 
 import {
@@ -7,7 +8,7 @@ import {
     doc,
     setDoc,
     serverTimestamp,
-      query,
+    query,
     where
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -17,9 +18,6 @@ const cameraPreview =
 
 const liveTitle =
     document.getElementById("liveTitle");
-
-const liveDescription =
-    document.getElementById("liveDescription");
 
 const startLiveBtn =
     document.getElementById("startLiveBtn");
@@ -44,6 +42,8 @@ async function startCamera() {
 
         cameraPreview.srcObject =
             cameraStream;
+
+        await cameraPreview.play();
 
     } catch (error) {
 
@@ -107,9 +107,7 @@ async function notifyFollowers(
         );
 
 
-        if (
-            followersSnapshot.empty
-        ) {
+        if (followersSnapshot.empty) {
 
             console.log(
                 "No followers to notify."
@@ -134,11 +132,8 @@ async function notifyFollowers(
 
 
                     /*
-                     * Your follower document
-                     * can contain userId.
-                     *
-                     * If it doesn't, we use
-                     * the document ID.
+                     * Use userId if available.
+                     * Otherwise use document ID.
                      */
 
                     const followerId =
@@ -150,10 +145,7 @@ async function notifyFollowers(
                      * Don't notify yourself.
                      */
 
-                    if (
-                        followerId ===
-                        user.uid
-                    ) {
+                    if (followerId === user.uid) {
 
                         return;
 
@@ -167,49 +159,20 @@ async function notifyFollowers(
                         ),
                         {
 
-                            /*
-                             * Who receives
-                             * the notification
-                             */
-
                             userId:
                                 followerId,
-
-
-                            /*
-                             * Who started
-                             * the live
-                             */
 
                             senderId:
                                 user.uid,
 
-
-                            /*
-                             * Notification type
-                             */
-
                             type:
                                 "live",
-
-
-                            /*
-                             * The Live stream
-                             * they should open
-                             */
 
                             streamId:
                                 streamId,
 
-
-                            /*
-                             * Useful extra
-                             * information
-                             */
-
                             streamTitle:
                                 liveTitle.value.trim(),
-
 
                             createdAt:
                                 serverTimestamp()
@@ -239,8 +202,8 @@ async function notifyFollowers(
         );
 
         /*
-         * We don't stop the Live if
-         * notification creation fails.
+         * Notification failure
+         * should not stop the Live.
          */
 
     }
@@ -274,9 +237,6 @@ startLiveBtn.addEventListener(
         const title =
             liveTitle.value.trim();
 
-        const description =
-            liveDescription.value.trim();
-
 
         if (!title) {
 
@@ -288,67 +248,69 @@ startLiveBtn.addEventListener(
 
         }
 
+
         /* =================================================
-   CHECK FOR EXISTING ACTIVE LIVE
-================================================= */
+           CHECK FOR EXISTING ACTIVE LIVE
+        ================================================= */
 
-const activeLiveQuery =
-    query(
-        collection(db, "liveStreams"),
-        where("hostId", "==", user.uid),
-        where("status", "==", "live")
-    );
-
-const activeLiveSnapshot =
-    await getDocs(activeLiveQuery);
+        const activeLiveQuery =
+            query(
+                collection(db, "liveStreams"),
+                where("hostId", "==", user.uid),
+                where("status", "==", "live")
+            );
 
 
-if (!activeLiveSnapshot.empty) {
-
-    const existingLive =
-        activeLiveSnapshot.docs[0];
-
-    const existingStreamId =
-        existingLive.id;
+        const activeLiveSnapshot =
+            await getDocs(activeLiveQuery);
 
 
-    console.log(
-        "🔴 User already has an active live:",
-        existingStreamId
-    );
+        if (!activeLiveSnapshot.empty) {
+
+            const existingLive =
+                activeLiveSnapshot.docs[0];
+
+            const existingStreamId =
+                existingLive.id;
 
 
-    if (cameraStream) {
-
-        cameraStream
-            .getTracks()
-            .forEach(track => {
-                track.stop();
-            });
-
-    }
-
-
-    const returnToLive =
-        confirm(
-            "You already have an active live stream.\n\n" +
-            "Do you want to return to your live?"
-        );
-
-
-    if (returnToLive) {
-
-        window.location.href =
-            `live.html?streamId=${encodeURIComponent(
+            console.log(
+                "🔴 User already has an active live:",
                 existingStreamId
-            )}`;
-
-    }
+            );
 
 
-    return;
+            if (cameraStream) {
 
-}
+                cameraStream
+                    .getTracks()
+                    .forEach(track => {
+                        track.stop();
+                    });
+
+            }
+
+
+            const returnToLive =
+                confirm(
+                    "You already have an active live stream.\n\n" +
+                    "Do you want to return to your live?"
+                );
+
+
+            if (returnToLive) {
+
+                window.location.href =
+                    `live.html?streamId=${encodeURIComponent(
+                        existingStreamId
+                    )}`;
+
+            }
+
+
+            return;
+
+        }
 
 
         try {
@@ -387,9 +349,6 @@ if (!activeLiveSnapshot.empty) {
                         title:
                             title,
 
-                        description:
-                            description,
-
                         status:
                             "live",
 
@@ -417,48 +376,53 @@ if (!activeLiveSnapshot.empty) {
                 streamRef.id
             );
 
+
             /* =================================================
-   ADD HOST AS FIRST PARTICIPANT
-================================================= */
+               ADD HOST AS FIRST PARTICIPANT
+            ================================================= */
 
-const hostParticipantRef =
-    doc(
-        db,
-        "liveStreams",
-        streamRef.id,
-        "participants",
-        user.uid
-    );
+            const hostParticipantRef =
+                doc(
+                    db,
+                    "liveStreams",
+                    streamRef.id,
+                    "participants",
+                    user.uid
+                );
 
-await setDoc(
-    hostParticipantRef,
-    {
-        userId:
-            user.uid,
 
-        username:
-            user.displayName ||
-            user.email ||
-            "MatchConnect User",
+            await setDoc(
+                hostParticipantRef,
+                {
 
-        photoURL:
-            user.photoURL ||
-            "",
+                    userId:
+                        user.uid,
 
-        role:
-            "host",
+                    username:
+                        user.displayName ||
+                        user.email ||
+                        "MatchConnect User",
 
-        status:
-            "active",
+                    photoURL:
+                        user.photoURL ||
+                        "",
 
-        joinedAt:
-            serverTimestamp()
-    }
-);
+                    role:
+                        "host",
 
-console.log(
-    "✅ Host added as live participant"
-);
+                    status:
+                        "active",
+
+                    joinedAt:
+                        serverTimestamp()
+
+                }
+            );
+
+
+            console.log(
+                "✅ Host added as live participant"
+            );
 
 
             /* =================================================
