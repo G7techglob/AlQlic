@@ -9,7 +9,9 @@ import {
     collection,
     addDoc,
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+     increment,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -48,6 +50,7 @@ const cameraBtn = document.getElementById("cameraBtn");
 const switchCameraBtn = document.getElementById("switchCameraBtn");
 const endLiveBtn = document.getElementById("endLiveBtn");
 const backBtn = document.getElementById("backBtn");
+const hostLikeBtn = document.getElementById("hostLikeBtn");
 
 const chatInput = document.getElementById("chatInput");
 const sendChatBtn = document.getElementById("sendChatBtn");
@@ -421,6 +424,69 @@ function showHostFloatingHeart(emoji = "❤️") {
 
 }
 
+
+// =====================================================
+// HOST LIKES THEIR OWN LIVE
+// =====================================================
+
+if (hostLikeBtn) {
+
+    hostLikeBtn.addEventListener("click", async () => {
+
+        const user = auth.currentUser;
+
+        if (!user || isEnding || hostLikeBtn.disabled) {
+            return;
+        }
+
+        try {
+
+            hostLikeBtn.disabled = true;
+
+            const streamRef = doc(
+                db,
+                "liveStreams",
+                streamId
+            );
+
+            const likeEventsRef = collection(
+                db,
+                "liveStreams",
+                streamId,
+                "likeEvents"
+            );
+
+            const batch = writeBatch(db);
+
+            const likeEventRef = doc(likeEventsRef);
+
+            batch.set(likeEventRef, {
+                userId: user.uid,
+                emoji: "❤️",
+                createdAt: serverTimestamp()
+            });
+
+            batch.update(streamRef, {
+                likes: increment(1)
+            });
+
+            await batch.commit();
+
+            console.log("❤️ Host liked their own live.");
+
+        } catch (error) {
+
+            console.error("Host like error:", error);
+
+        } finally {
+
+            hostLikeBtn.disabled = false;
+
+        }
+
+    });
+
+}
 
 // =====================================================
 // START CAMERA
