@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -36,6 +37,7 @@
 
     </header>
 
+    <!-- FULLSCREEN CAMERA -->
 
     <video
         id="cameraPreview"
@@ -44,6 +46,7 @@
         playsinline
     ></video>
 
+    <!-- STREAM TITLE -->
 
     <input
         id="liveTitle"
@@ -52,23 +55,17 @@
         maxlength="100"
     >
 
-
-    <textarea
-        id="liveDescription"
-        placeholder="Add a description..."
-        maxlength="500"
-    ></textarea>
-
+    <!-- START LIVE -->
 
     <button
         id="startLiveBtn"
         class="start-live-btn"
+        type="button"
     >
         🔴 Start Live
     </button>
 
 </div>
-
 
 <script
     type="module"
