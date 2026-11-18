@@ -375,6 +375,7 @@ body {
     border-radius: 8px;
 }
 
+
 /* LIVE CONTROLS */
 
 .live-controls {
@@ -386,61 +387,77 @@ body {
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 16px;
     padding: 10px 15px;
-    box-sizing: border-box;
     background: transparent;
     z-index: 100;
 }
 
 .live-controls button {
-    width: 48px;
-    height: 48px;
-    border: none;
+    flex: 0 0 50px;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    border: 2px solid rgba(255, 255, 255, 0.18);
     border-radius: 50%;
-    background: rgba(35, 35, 35, 0.9);
+    background: rgba(25, 25, 25, 0.95);
     color: white;
     font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 .live-controls button:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
 }
 
+/* HOST LIKE */
+
+.live-controls .host-like-btn {
+    background: #e91e63;
+    border-color: #ff80ab;
+}
+
+/* END LIVE */
+
 .live-controls .end-live-btn {
+    flex: 0 0 auto;
     width: auto;
-    min-width: 105px;
-    padding: 0 15px;
+    min-width: 110px;
+    height: 48px;
+    padding: 0 17px;
     border-radius: 25px;
+    border: none;
     background: #e53935;
+    color: white;
     font-size: 14px;
     font-weight: bold;
 }
 
-.live-controls .host-like-btn {
-    background: #e91e63;
-}
+/* MOBILE */
 
-.live-controls button {
-    border: none;
-    border-radius: 50%;
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
-}
+@media (max-width: 600px) {
+    .live-controls {
+        gap: 12px;
+        padding: 10px 8px;
+        bottom: 15px;
+    }
 
-.live-controls .end-live-btn {
-    width: auto;
-    border-radius: 25px;
-    padding: 0 18px;
-    background: #e53935;
-    color: white;
-    font-size: 14px;
+    .live-controls button {
+        flex-basis: 44px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .live-controls .end-live-btn {
+        flex-basis: auto;
+        width: auto;
+        min-width: 100px;
+        height: 44px;
+    }
 }
 
 /* STREAM INFORMATION IS HIDDEN
