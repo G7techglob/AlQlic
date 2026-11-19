@@ -342,3 +342,35 @@ body {
     }
 
 }
+
+
+/* LIKE BUTTON WITH COUNT ABOVE IT */
+
+.floating-like-control {
+    position: absolute;
+    right: 18px;
+    bottom: 150px;
+    z-index: 20;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.floating-like-count {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    text-shadow: 0 2px 5px #000000;
+}
+
+.floating-like-control button {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    font-size: 25px;
+    cursor: pointer;
+}
