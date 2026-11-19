@@ -24,6 +24,46 @@ import {
 console.log("✅ HOST Live JS loaded");
 
 
+
+// =====================================================
+// SHARE LIVE STREAM
+// =====================================================
+
+const shareLiveBtn = document.getElementById("shareLiveBtn");
+
+if (shareLiveBtn) {
+    shareLiveBtn.addEventListener("click", async () => {
+
+        const liveUrl = window.location.href;
+
+        const shareData = {
+            title: "Join my AlQlic Live",
+            text: "I'm live on AlQlic! Join me here:",
+            url: liveUrl
+        };
+
+        try {
+
+            if (navigator.share) {
+                await navigator.share(shareData);
+
+            } else if (navigator.clipboard) {
+                await navigator.clipboard.writeText(liveUrl);
+                alert("Live link copied! You can now share it.");
+
+            } else {
+                prompt("Copy your livestream link:", liveUrl);
+            }
+
+        } catch (error) {
+            if (error.name !== "AbortError") {
+                console.error("Share Live error:", error);
+            }
+        }
+    });
+}
+
+
 // =====================================================
 // STREAM ID
 // =====================================================
