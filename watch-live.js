@@ -371,8 +371,10 @@ async function joinLive() {
                     db,
                     "liveStreams",
                     streamId,
-                    "viewers",
-                    viewerId,
+                  "viewers",
+
+                    viewerSessionId,
+
                     "viewerCandidates"
                 ),
 
@@ -436,7 +438,7 @@ async function joinLive() {
         "liveStreams",
         streamId,
         "offers",
-        viewerId
+         viewerSessionId
     );
 
     await setDoc(viewerOfferRef, {
@@ -457,14 +459,13 @@ async function joinLive() {
     // =================================================
     // VIEWER ANSWER DOCUMENT
     // =================================================
-
-    viewerAnswerRef = doc(
-        db,
-        "liveStreams",
-        streamId,
-        "viewers",
-        viewerId
-    );
+viewerAnswerRef = doc(
+    db,
+    "liveStreams",
+    streamId,
+    "viewers",
+    viewerSessionId
+);
 
 
     // =================================================
