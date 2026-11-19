@@ -4,13 +4,17 @@ import { auth, db, storage } from "./firebase.js";
 import {
     doc,
     getDoc,
+    getDocs,
     updateDoc,
     setDoc,
     collection,
     addDoc,
     onSnapshot,
+    query,
+    where,
+    limit,
     serverTimestamp,
-     increment,
+    increment,
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -96,6 +100,120 @@ const chatInput = document.getElementById("chatInput");
 const sendChatBtn = document.getElementById("sendChatBtn");
 const chatMessages = document.getElementById("chatMessages");
 
+// =====================================================
+// CO-HOST INVITATION ELEMENTS
+// =====================================================
+
+const inviteCoHostBtn = document.getElementById("inviteCoHostBtn");
+
+const coHostInvitePanel = document.getElementById("coHostInvitePanel");
+
+const coHostUsername = document.getElementById("coHostUsername");
+
+const sendCoHostInviteBtn = document.getElementById("sendCoHostInviteBtn");
+
+const closeCoHostInviteBtn = document.getElementById("closeCoHostInviteBtn");
+
+const coHostInviteStatus = document.getElementById("coHostInviteStatus");
+
+// =====================================================
+// CO-HOST INVITATION PANEL CONTROLS
+// =====================================================
+
+inviteCoHostBtn.addEventListener("click", () => {
+    coHostInvitePanel.style.display = "block";
+    coHostInviteStatus.textContent = "";
+    coHostUsername.value = "";
+});
+
+closeCoHostInviteBtn.addEventListener("click", () => {
+    coHostInvitePanel.style.display = "none";
+});
+
+// =====================================================
+// SEND CO-HOST INVITATION
+// =====================================================
+
+sendCoHostInviteBtn.addEventListener("click", async () => {
+
+    const username = coHostUsername.value.trim().replace(/^@/, "");
+
+    if (!username) {
+        coHostInviteStatus.textContent = "Enter a username first.";
+        return;
+    }
+
+    if (!auth.currentUser) {
+        coHostInviteStatus.textContent = "Please log in first.";
+        return;
+    }
+
+    sendCoHostInviteBtn.disabled = true;
+    coHostInviteStatus.textContent = "Searching for user...";
+
+    try {
+
+        // Find the user by AlQlic username
+        const usersQuery = query(
+            collection(db, "users"),
+            where("username", "==", username),
+            limit(1)
+        );
+
+        const usersSnapshot = await getDocs(usersQuery);
+
+        if (usersSnapshot.empty) {
+            coHostInviteStatus.textContent = "User not found. Check the username.";
+            return;
+        }
+
+        const invitedUserDoc = usersSnapshot.docs[0];
+        const invitedUserId = invitedUserDoc.id;
+
+        if (invitedUserId === auth.currentUser.uid) {
+            coHostInviteStatus.textContent = "You cannot invite yourself.";
+            return;
+        }
+
+        // Get host profile
+        const hostSnapshot = await getDoc(
+            doc(db, "users", auth.currentUser.uid)
+        );
+
+        const hostData = hostSnapshot.exists()
+            ? hostSnapshot.data()
+            : {};
+
+        // Save invitation in this live stream
+        await addDoc(
+            collection(db, "liveStreams", streamId, "coHostInvitations"),
+            {
+                hostId: auth.currentUser.uid,
+                hostName: hostData.name || auth.currentUser.displayName || "AlQlic Host",
+                hostUsername: hostData.username || "",
+                invitedUserId: invitedUserId,
+                invitedUsername: invitedUserDoc.data().username || username,
+                status: "pending",
+                createdAt: serverTimestamp()
+            }
+        );
+
+        coHostInviteStatus.textContent = "Invitation sent successfully!";
+
+    } catch (error) {
+
+        console.error("Co-host invitation error:", error);
+
+        coHostInviteStatus.textContent =
+            "Could not send invitation. Please try again.";
+
+    } finally {
+
+        sendCoHostInviteBtn.disabled = false;
+
+    }
+
+});
 
 // =====================================================
 // VARIABLES
