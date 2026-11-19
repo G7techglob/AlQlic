@@ -324,33 +324,55 @@ async function joinLive() {
 
 
     // =================================================
-    // RECEIVE HOST VIDEO AND AUDIO
-    // =================================================
+// RECEIVE HOST AND CO-HOST VIDEO AND AUDIO
+// =================================================
 
-    peerConnection.ontrack = event => {
+const remoteMediaStream = new MediaStream();
 
-        console.log("Host media received");
+peerConnection.ontrack = async event => {
 
-        if (
-            event.streams &&
-            event.streams[0] &&
-            remoteVideo
-        ) {
+    console.log(
+        "📡 Remote media received:",
+        event.track.kind,
+        event.track.id
+    );
 
-            remoteVideo.srcObject = event.streams[0];
+    // Add each incoming track only once
+    if (
+        !remoteMediaStream.getTracks().some(
+            track => track.id === event.track.id
+        )
+    ) {
+        remoteMediaStream.addTrack(event.track);
+    }
 
-            remoteVideo.play().catch(error => {
+    if (!remoteVideo) {
+        return;
+    }
 
-                console.log(
-                    "Video playback requires user interaction:",
-                    error
-                );
+    remoteVideo.srcObject = remoteMediaStream;
 
-            });
+    // Allow viewers to hear incoming audio
+    remoteVideo.muted = false;
+    remoteVideo.volume = 1;
+    remoteVideo.autoplay = true;
+    remoteVideo.playsInline = true;
 
-        }
+    try {
+        await remoteVideo.play();
 
-    };
+        console.log("🔊 Live audio/video playback started.");
+
+    } catch (error) {
+
+        console.warn(
+            "Viewer playback requires user interaction:",
+            error
+        );
+
+    }
+
+};
 
 
     // =================================================
