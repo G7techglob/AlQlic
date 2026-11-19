@@ -123,6 +123,7 @@ let unsubscribeMessages = null;
 
 let unsubscribeStreamStats = null;
 let unsubscribeLikeEvents = null;
+let unsubscribeViewerCandidates = {};
 
 
 // =====================================================
@@ -884,7 +885,6 @@ async function saveLiveRecording() {
 // =====================================================
 // START HOST SIGNALING
 // =====================================================
-
 function startSignaling() {
 
     console.log("📡 HOST signaling started.");
@@ -895,7 +895,6 @@ function startSignaling() {
         streamId,
         "offers"
     );
-
 
     unsubscribeOffers = onSnapshot(
         offersRef,
@@ -908,16 +907,16 @@ function startSignaling() {
                     continue;
                 }
 
-                const viewerId = change.doc.id;
+                const sessionId = change.doc.id;
 
-                if (peerConnections[viewerId]) {
+                if (peerConnections[sessionId]) {
                     continue;
                 }
 
-                console.log("👤 New viewer:", viewerId);
+                console.log("👤 New viewer session:", sessionId);
 
                 await createViewerConnection(
-                    viewerId,
+                    sessionId,
                     change.doc.data()
                 );
 
@@ -926,54 +925,51 @@ function startSignaling() {
         },
 
         error => {
-
-            console.error(
-                "Host signaling listener error:",
-                error
-            );
-
+            console.error("Host signaling listener error:", error);
         }
     );
 
 }
 
 
+
 // =====================================================
 // CREATE HOST CONNECTION TO VIEWER
 // =====================================================
 
-async function createViewerConnection(viewerId, offerData) {
+async function createViewerConnection(sessionId, offerData) {
 
     let pc = null;
+
+    const viewerId = offerData.viewerId;
 
     const answerRef = doc(
         db,
         "liveStreams",
         streamId,
         "viewers",
-        viewerId
+        sessionId
     );
-
 
     try {
 
         if (!localStream) {
-
             console.error("Host camera stream is unavailable.");
-
             return;
-
         }
 
+        if (!viewerId || !offerData.sdp || !offerData.type) {
+            console.error("Invalid viewer offer:", sessionId);
+            return;
+        }
 
         // CREATE CONNECTION
 
         pc = new RTCPeerConnection(rtcConfig);
 
-        peerConnections[viewerId] = pc;
+        peerConnections[sessionId] = pc;
 
-
-        // REGISTER VIEWER
+        // REGISTER THIS UNIQUE VIEWER SESSION
 
         await setDoc(
             answerRef,
@@ -981,30 +977,22 @@ async function createViewerConnection(viewerId, offerData) {
                 answer: null,
                 status: "connecting",
                 viewerId: viewerId,
+                sessionId: sessionId,
                 joinedAt: serverTimestamp()
-            },
-            {
-                merge: true
             }
         );
-
 
         // SEND CAMERA AND MICROPHONE
 
         localStream.getTracks().forEach(track => {
-
             pc.addTrack(track, localStream);
-
         });
-
 
         // SEND HOST ICE CANDIDATES
 
         pc.onicecandidate = async event => {
 
-            if (!event.candidate) {
-                return;
-            }
+            if (!event.candidate) return;
 
             try {
 
@@ -1014,20 +1002,17 @@ async function createViewerConnection(viewerId, offerData) {
                         "liveStreams",
                         streamId,
                         "viewers",
-                        viewerId,
+                        sessionId,
                         "hostCandidates"
                     ),
                     event.candidate.toJSON()
                 );
 
             } catch (error) {
-
                 console.error("Host ICE error:", error);
-
             }
 
         };
-
 
         // CONNECTION STATUS
 
@@ -1036,35 +1021,19 @@ async function createViewerConnection(viewerId, offerData) {
             const state = pc.connectionState;
 
             console.log(
-                "🔗 Viewer connection:",
-                viewerId,
+                "🔗 Viewer session:",
+                sessionId,
                 state
             );
 
-
-            let status = null;
-
-            if (state === "connected") {
-                status = "connected";
-            }
-
-            if (
-                state === "disconnected" ||
-                state === "failed" ||
-                state === "closed"
-            ) {
-                status = "disconnected";
-            }
-
-
-            if (status) {
+            if (state === "connected" || state === "disconnected") {
 
                 try {
 
                     await updateDoc(
                         answerRef,
                         {
-                            status: status,
+                            status: state,
                             statusUpdatedAt: serverTimestamp()
                         }
                     );
@@ -1080,18 +1049,18 @@ async function createViewerConnection(viewerId, offerData) {
 
             }
 
+            if (state === "failed" || state === "closed") {
 
-            if (
-                state === "failed" ||
-                state === "closed"
-            ) {
+                if (unsubscribeViewerCandidates[sessionId]) {
+                    unsubscribeViewerCandidates[sessionId]();
+                    delete unsubscribeViewerCandidates[sessionId];
+                }
 
-                delete peerConnections[viewerId];
+                delete peerConnections[sessionId];
 
             }
 
         };
-
 
         // RECEIVE VIEWER OFFER
 
@@ -1102,7 +1071,6 @@ async function createViewerConnection(viewerId, offerData) {
             })
         );
 
-
         // RECEIVE VIEWER ICE CANDIDATES
 
         const viewerCandidatesRef = collection(
@@ -1110,21 +1078,18 @@ async function createViewerConnection(viewerId, offerData) {
             "liveStreams",
             streamId,
             "viewers",
-            viewerId,
+            sessionId,
             "viewerCandidates"
         );
 
-
-        onSnapshot(
+        unsubscribeViewerCandidates[sessionId] = onSnapshot(
             viewerCandidatesRef,
 
             async snapshot => {
 
                 for (const change of snapshot.docChanges()) {
 
-                    if (change.type !== "added") {
-                        continue;
-                    }
+                    if (change.type !== "added") continue;
 
                     try {
 
@@ -1143,9 +1108,7 @@ async function createViewerConnection(viewerId, offerData) {
                         console.log("✅ Viewer ICE candidate added.");
 
                     } catch (error) {
-
                         console.error("Viewer ICE error:", error);
-
                     }
 
                 }
@@ -1153,15 +1116,9 @@ async function createViewerConnection(viewerId, offerData) {
             },
 
             error => {
-
-                console.error(
-                    "Viewer ICE listener error:",
-                    error
-                );
-
+                console.error("Viewer ICE listener error:", error);
             }
         );
-
 
         // CREATE HOST ANSWER
 
@@ -1169,11 +1126,9 @@ async function createViewerConnection(viewerId, offerData) {
 
         await pc.setLocalDescription(answer);
 
-
         // WAIT FOR ICE GATHERING
 
         await waitForIceGathering(pc);
-
 
         // SEND HOST ANSWER
 
@@ -1188,16 +1143,19 @@ async function createViewerConnection(viewerId, offerData) {
             }
         );
 
-
         console.log(
-            "✅ Host answer sent to viewer:",
-            viewerId
+            "✅ Host answer sent to viewer session:",
+            sessionId
         );
-
 
     } catch (error) {
 
         console.error("Host WebRTC error:", error);
+
+        if (unsubscribeViewerCandidates[sessionId]) {
+            unsubscribeViewerCandidates[sessionId]();
+            delete unsubscribeViewerCandidates[sessionId];
+        }
 
         if (pc) {
             try {
@@ -1205,16 +1163,17 @@ async function createViewerConnection(viewerId, offerData) {
             } catch {}
         }
 
-        delete peerConnections[viewerId];
+        delete peerConnections[sessionId];
 
         try {
 
-            await updateDoc(
+            await setDoc(
                 answerRef,
                 {
                     status: "failed",
                     statusUpdatedAt: serverTimestamp()
-                }
+                },
+                { merge: true }
             );
 
         } catch (updateError) {
@@ -1461,7 +1420,16 @@ function stopLiveListeners() {
     if (unsubscribeLikeEvents) {
         unsubscribeLikeEvents();
         unsubscribeLikeEvents = null;
+        
     }
+
+        Object.keys(unsubscribeViewerCandidates).forEach(sessionId => {
+
+        unsubscribeViewerCandidates[sessionId]();
+
+        delete unsubscribeViewerCandidates[sessionId];
+
+    });
 
 }
 
