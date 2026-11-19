@@ -441,18 +441,19 @@ async function joinLive() {
          viewerSessionId
     );
 
-    await setDoc(viewerOfferRef, {
+  await setDoc(viewerOfferRef, {
 
-        type: offer.type,
+    type: offer.type,
 
-        sdp: offer.sdp,
+    sdp: offer.sdp,
 
-        viewerId: viewerId,
+    viewerId: viewerId,
 
-        createdAt: serverTimestamp()
+    sessionId: viewerSessionId,
 
-    });
+    createdAt: serverTimestamp()
 
+});
     console.log("Viewer offer sent");
 
 
@@ -472,15 +473,14 @@ viewerAnswerRef = doc(
     // LISTEN FOR HOST ICE CANDIDATES
     // =================================================
 
-    const hostCandidatesRef = collection(
-        db,
-        "liveStreams",
-        streamId,
-        "viewers",
-        viewerId,
-        "hostCandidates"
-    );
-
+ const hostCandidatesRef = collection(
+    db,
+    "liveStreams",
+    streamId,
+    "viewers",
+    viewerSessionId,
+    "hostCandidates"
+);
     unsubscribeHostCandidates = onSnapshot(
 
         hostCandidatesRef,
