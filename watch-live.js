@@ -33,6 +33,10 @@ const streamId = params.get("streamId");
 
 const remoteVideo = document.getElementById("remoteVideo");
 
+// CO-HOST VIDEO ELEMENT
+
+const coHostVideo = document.getElementById("coHostVideo");
+
 const title = document.getElementById("title");
 const streamTitle = document.getElementById("streamTitle");
 
@@ -66,6 +70,10 @@ const backBtn = document.getElementById("backBtn");
 
 let peerConnection = null;
 
+// CO-HOST CONNECTION
+let coHostPeerConnection = null;
+let coHostMediaStream = new MediaStream();
+
 let viewerId = null;
 let viewerSessionId = null;
 let currentUser = null;
@@ -79,6 +87,10 @@ let cleanupStarted = false;
 
 let unsubscribeAnswer = null;
 let unsubscribeHostCandidates = null;
+
+let unsubscribeCoHostOffer = null;
+let unsubscribeCoHostCandidates = null;
+
 let unsubscribeChat = null;
 let unsubscribeStreamStats = null;
 let unsubscribeLikeEvents = null;
