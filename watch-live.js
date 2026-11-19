@@ -67,6 +67,7 @@ const backBtn = document.getElementById("backBtn");
 let peerConnection = null;
 
 let viewerId = null;
+let viewerSessionId = null;
 let currentUser = null;
 let creatorId = null;
 
@@ -145,9 +146,13 @@ auth.onAuthStateChanged(async user => {
 
     }
 
-    currentUser = user;
-    viewerId = user.uid;
+ currentUser = user;
+viewerId = user.uid;
 
+// Generate a fresh ID for every viewing session.
+
+viewerSessionId =
+    `${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     try {
 
         await loadStream();
