@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AlQlic Co-Host</title>
+
+    <link rel="stylesheet" href="co-host.css">
+
+</head>
+
+<body>
+
+    <main class="cohost-container">
+
+        <header class="cohost-header">
+            <h2>AlQlic Co-Host</h2>
+            <p>Join a live broadcast as a co-host</p>
+        </header>
+
+        <section id="invitationSection">
+
+            <h3>Live Invitation</h3>
+
+            <p id="invitationMessage">
+                Checking for your invitation...
+            </p>
+
+            <button id="acceptInviteBtn" type="button">
+                Accept Invitation
+            </button>
+
+            <button id="declineInviteBtn" type="button">
+                Decline
+            </button>
+
+        </section>
+
+        <section id="coHostLiveSection" style="display: none;">
+
+            <video
+                id="coHostLocalVideo"
+                autoplay
+                playsinline
+                muted
+            ></video>
+
+            <div class="cohost-controls">
+
+                <button id="coHostMicBtn" type="button">
+                    🎤 Microphone
+                </button>
+
+                <button id="coHostCameraBtn" type="button">
+                    📷 Camera
+                </button>
+
+                <button id="leaveCoHostBtn" type="button">
+                    Leave Live
+                </button>
+
+            </div>
+
+            <p id="coHostStatus">
+                Waiting to connect...
+            </p>
+
+        </section>
+
+    </main>
+
+    <script type="module" src="co-host.js"></script>
+
+</body>
+
+</html>
