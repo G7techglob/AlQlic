@@ -10,11 +10,15 @@ import {
     collection,
     addDoc,
     onSnapshot,
+    query,
+    where,
+    orderBy,
+    limit,
+    getDocs,
     increment,
     serverTimestamp,
-     writeBatch
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
 
 console.log("AlQlic Watch Live JS loaded");
 
@@ -36,6 +40,18 @@ const remoteVideo = document.getElementById("remoteVideo");
 // CO-HOST VIDEO ELEMENT
 
 const coHostVideo = document.getElementById("coHostVideo");
+
+// =====================================================
+// CO-HOST INVITATION ELEMENTS
+// =====================================================
+
+const coHostInvitationPanel = document.getElementById("coHostInvitationPanel");
+
+const coHostInvitationMessage = document.getElementById("coHostInvitationMessage");
+
+const acceptCoHostInviteBtn = document.getElementById("acceptCoHostInviteBtn");
+
+const declineCoHostInviteBtn = document.getElementById("declineCoHostInviteBtn");
 
 const title = document.getElementById("title");
 const streamTitle = document.getElementById("streamTitle");
@@ -90,6 +106,158 @@ let unsubscribeHostCandidates = null;
 
 let unsubscribeCoHostOffer = null;
 let unsubscribeCoHostCandidates = null;
+// =====================================================
+// CO-HOST INVITATION LISTENER
+// =====================================================
+
+let unsubscribeCoHostInvitations = null;
+let currentCoHostInvitationId = null;
+
+// =====================================================
+// LISTEN FOR CO-HOST INVITATIONS
+// =====================================================
+
+function listenForCoHostInvitations() {
+
+    if (!auth.currentUser || !streamId) return;
+
+    if (unsubscribeCoHostInvitations) {
+        unsubscribeCoHostInvitations();
+    }
+
+    const invitationsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations"
+    );
+
+    const invitationsQuery = query(
+        invitationsRef,
+        where("invitedUserId", "==", auth.currentUser.uid),
+        where("status", "==", "pending"),
+        limit(1)
+    );
+
+    unsubscribeCoHostInvitations = onSnapshot(
+        invitationsQuery,
+        (snapshot) => {
+
+            if (snapshot.empty) {
+                coHostInvitationPanel.style.display = "none";
+                currentCoHostInvitationId = null;
+                return;
+            }
+
+            const invitationDoc = snapshot.docs[0];
+
+            currentCoHostInvitationId = invitationDoc.id;
+
+            const invitation = invitationDoc.data();
+
+            coHostInvitationMessage.textContent =
+                (invitation.hostName || "The host") +
+                " invited you to join this live stream as a co-host.";
+
+            coHostInvitationPanel.style.display = "block";
+
+        },
+        (error) => {
+            console.error("Co-host invitation listener error:", error);
+        }
+    );
+}
+
+
+// =====================================================
+// ACCEPT OR DECLINE CO-HOST INVITATION
+// =====================================================
+
+acceptCoHostInviteBtn.addEventListener("click", async () => {
+
+    if (!currentCoHostInvitationId || !streamId) {
+        return;
+    }
+
+    acceptCoHostInviteBtn.disabled = true;
+
+    try {
+
+        await updateDoc(
+            doc(
+                db,
+                "liveStreams",
+                streamId,
+                "coHostInvitations",
+                currentCoHostInvitationId
+            ),
+            {
+                status: "accepted",
+                respondedAt: serverTimestamp()
+            }
+        );
+
+        coHostInvitationPanel.style.display = "none";
+
+        console.log("Co-host invitation accepted.");
+
+    } catch (error) {
+
+        console.error("Could not accept invitation:", error);
+
+        alert("Could not accept the invitation. Please try again.");
+
+    } finally {
+
+        acceptCoHostInviteBtn.disabled = false;
+
+    }
+
+});
+
+
+declineCoHostInviteBtn.addEventListener("click", async () => {
+
+    if (!currentCoHostInvitationId || !streamId) {
+        return;
+    }
+
+    declineCoHostInviteBtn.disabled = true;
+
+    try {
+
+        await updateDoc(
+            doc(
+                db,
+                "liveStreams",
+                streamId,
+                "coHostInvitations",
+                currentCoHostInvitationId
+            ),
+            {
+                status: "declined",
+                respondedAt: serverTimestamp()
+            }
+        );
+
+        coHostInvitationPanel.style.display = "none";
+
+        console.log("Co-host invitation declined.");
+
+    } catch (error) {
+
+        console.error("Could not decline invitation:", error);
+
+        alert("Could not decline the invitation. Please try again.");
+
+    } finally {
+
+        declineCoHostInviteBtn.disabled = false;
+
+    }
+
+});
+
 
 let unsubscribeChat = null;
 let unsubscribeStreamStats = null;
@@ -652,6 +820,8 @@ viewerAnswerRef = doc(
         }
 
     );
+
+    listenForCoHostInvitations();
 
 }
 
