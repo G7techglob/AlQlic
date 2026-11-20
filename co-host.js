@@ -262,7 +262,6 @@ declineInviteBtn.addEventListener("click", async () => {
 // =====================================================
 // START CO-HOST CAMERA
 // =====================================================
-
 async function startCoHostCamera() {
 
     try {
@@ -274,15 +273,249 @@ async function startCoHostCamera() {
 
         coHostLocalVideo.srcObject = coHostStream;
 
+        await coHostLocalVideo.play();
+
         coHostStatus.textContent =
-            "Camera and microphone are ready. Connecting to the host will be the next step.";
+            "Camera and microphone ready. Connecting to host...";
+
+        // Start the WebRTC connection
+        await connectToHost();
 
     } catch (error) {
 
-        console.error("Co-host camera error:", error);
+        console.error("Co-host camera or connection error:", error);
 
         coHostStatus.textContent =
-            "Could not access camera or microphone. Check browser permissions.";
+            "Could not start camera or connect to host. Check permissions and try again.";
+
+    }
+
+}
+
+// =====================================================
+// CONNECT CO-HOST TO HOST
+// =====================================================
+
+async function connectToHost() {
+
+    if (!coHostStream || !currentStreamId || !currentInvitationId) {
+        console.error("Missing co-host connection information.");
+        return;
+    }
+
+    console.log("Connecting co-host to host...");
+
+    coHostPeerConnection = new RTCPeerConnection(rtcConfig);
+
+    const pc = coHostPeerConnection;
+
+    const invitationRef = doc(
+        db,
+        "liveStreams",
+        currentStreamId,
+        "coHostInvitations",
+        currentInvitationId
+    );
+
+    const coHostCandidatesRef = collection(
+        db,
+        "liveStreams",
+        currentStreamId,
+        "coHostInvitations",
+        currentInvitationId,
+        "coHostCandidates"
+    );
+
+    const hostCandidatesRef = collection(
+        db,
+        "liveStreams",
+        currentStreamId,
+        "coHostInvitations",
+        currentInvitationId,
+        "hostCoHostCandidates"
+    );
+
+    const pendingHostCandidates = [];
+
+    // SEND CO-HOST CAMERA AND MICROPHONE TO HOST
+
+    coHostStream.getTracks().forEach(track => {
+        pc.addTrack(track, coHostStream);
+    });
+
+    // SEND ICE CANDIDATES TO FIRESTORE
+
+    pc.onicecandidate = async event => {
+
+        if (!event.candidate) return;
+
+        try {
+
+            await addDoc(
+                coHostCandidatesRef,
+                event.candidate.toJSON()
+            );
+
+        } catch (error) {
+
+            console.error("Co-host ICE error:", error);
+
+        }
+
+    };
+
+    // WATCH CONNECTION STATUS
+
+    pc.onconnectionstatechange = () => {
+
+        console.log(
+            "Co-host connection state:",
+            pc.connectionState
+        );
+
+        if (pc.connectionState === "connected") {
+
+            coHostStatus.textContent =
+                "Connected to the host successfully.";
+
+        } else if (
+            pc.connectionState === "disconnected" ||
+            pc.connectionState === "failed"
+        ) {
+
+            coHostStatus.textContent =
+                "Connection interrupted. Please check your internet.";
+
+        }
+
+    };
+
+    try {
+
+        // CREATE CO-HOST OFFER
+
+        const offer = await pc.createOffer();
+
+        await pc.setLocalDescription(offer);
+
+        await updateDoc(invitationRef, {
+
+            coHostOffer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            },
+
+            coHostOfferCreatedAt: serverTimestamp()
+
+        });
+
+        console.log("Co-host offer sent to host.");
+
+        // RECEIVE HOST ANSWER
+
+        unsubscribeCoHostAnswer = onSnapshot(
+            invitationRef,
+            async snapshot => {
+
+                if (!snapshot.exists()) return;
+
+                const data = snapshot.data();
+
+                if (
+                    data.coHostAnswer &&
+                    !pc.remoteDescription &&
+                    pc.signalingState !== "closed"
+                ) {
+
+                    try {
+
+                        await pc.setRemoteDescription(
+                            new RTCSessionDescription(data.coHostAnswer)
+                        );
+
+                        console.log("Host answer received.");
+
+                        // ADD ANY ICE CANDIDATES THAT ARRIVED EARLY
+
+                        for (const candidate of pendingHostCandidates) {
+
+                            await pc.addIceCandidate(
+                                new RTCIceCandidate(candidate)
+                            );
+
+                        }
+
+                        pendingHostCandidates.length = 0;
+
+                    } catch (error) {
+
+                        console.error("Host answer error:", error);
+
+                    }
+
+                }
+
+            }
+        );
+
+        // RECEIVE HOST ICE CANDIDATES
+
+        unsubscribeHostCandidates = onSnapshot(
+            hostCandidatesRef,
+            async snapshot => {
+
+                for (const change of snapshot.docChanges()) {
+
+                    if (change.type !== "added") continue;
+
+                    if (receivedHostCandidates.has(change.doc.id)) {
+                        continue;
+                    }
+
+                    receivedHostCandidates.add(change.doc.id);
+
+                    const candidate = change.doc.data();
+
+                    try {
+
+                        if (pc.remoteDescription) {
+
+                            await pc.addIceCandidate(
+                                new RTCIceCandidate(candidate)
+                            );
+
+                        } else {
+
+                            pendingHostCandidates.push(candidate);
+
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            "Host ICE candidate error:",
+                            error
+                        );
+
+                    }
+
+                }
+
+            },
+            error => {
+                console.error("Host ICE listener error:", error);
+            }
+        );
+
+        coHostStatus.textContent =
+            "Connecting to the host...";
+
+    } catch (error) {
+
+        console.error("Could not connect to host:", error);
+
+        coHostStatus.textContent =
+            "Could not connect to the host. Please try again.";
 
     }
 
@@ -328,11 +561,33 @@ coHostCameraBtn.addEventListener("click", () => {
 
 });
 
+
 // =====================================================
 // LEAVE CO-HOST PAGE
 // =====================================================
 
-leaveCoHostBtn.addEventListener("click", () => {
+leaveCoHostBtn.addEventListener("click", async () => {
+
+    // Stop listening for Firestore updates
+
+    if (unsubscribeCoHostAnswer) {
+        unsubscribeCoHostAnswer();
+        unsubscribeCoHostAnswer = null;
+    }
+
+    if (unsubscribeHostCandidates) {
+        unsubscribeHostCandidates();
+        unsubscribeHostCandidates = null;
+    }
+
+    // Close WebRTC connection
+
+    if (coHostPeerConnection) {
+        coHostPeerConnection.close();
+        coHostPeerConnection = null;
+    }
+
+    // Stop camera and microphone
 
     if (coHostStream) {
 
@@ -341,15 +596,45 @@ leaveCoHostBtn.addEventListener("click", () => {
         });
 
         coHostStream = null;
-
     }
 
+    // Clear local video
+
     coHostLocalVideo.srcObject = null;
+
+    // Update invitation status
+
+    if (currentInvitationId && currentStreamId) {
+
+        try {
+
+            await updateDoc(
+                doc(
+                    db,
+                    "liveStreams",
+                    currentStreamId,
+                    "coHostInvitations",
+                    currentInvitationId
+                ),
+                {
+                    status: "left",
+                    leftAt: serverTimestamp()
+                }
+            );
+
+        } catch (error) {
+
+            console.error("Could not update co-host status:", error);
+
+        }
+
+    }
 
     coHostLiveSection.style.display = "none";
 
     invitationSection.style.display = "block";
 
-    coHostStatus.textContent = "You left the co-host session.";
+    coHostStatus.textContent =
+        "You left the co-host session.";
 
 });
