@@ -36,22 +36,7 @@ const streamId = params.get("streamId");
 // =====================================================
 
 const remoteVideo = document.getElementById("remoteVideo");
-
-// CO-HOST VIDEO ELEMENT
-
 const coHostVideo = document.getElementById("coHostVideo");
-
-// =====================================================
-// CO-HOST INVITATION ELEMENTS
-// =====================================================
-
-const coHostInvitationPanel = document.getElementById("coHostInvitationPanel");
-
-const coHostInvitationMessage = document.getElementById("coHostInvitationMessage");
-
-const acceptCoHostInviteBtn = document.getElementById("acceptCoHostInviteBtn");
-
-const declineCoHostInviteBtn = document.getElementById("declineCoHostInviteBtn");
 
 const title = document.getElementById("title");
 const streamTitle = document.getElementById("streamTitle");
@@ -86,7 +71,7 @@ const backBtn = document.getElementById("backBtn");
 
 let peerConnection = null;
 
-// CO-HOST CONNECTION
+// CO-HOST CONNECTION SCAFFOLDING
 let coHostPeerConnection = null;
 let coHostMediaStream = new MediaStream();
 
@@ -106,158 +91,6 @@ let unsubscribeHostCandidates = null;
 
 let unsubscribeCoHostOffer = null;
 let unsubscribeCoHostCandidates = null;
-// =====================================================
-// CO-HOST INVITATION LISTENER
-// =====================================================
-
-let unsubscribeCoHostInvitations = null;
-let currentCoHostInvitationId = null;
-
-// =====================================================
-// LISTEN FOR CO-HOST INVITATIONS
-// =====================================================
-
-function listenForCoHostInvitations() {
-
-    if (!auth.currentUser || !streamId) return;
-
-    if (unsubscribeCoHostInvitations) {
-        unsubscribeCoHostInvitations();
-    }
-
-    const invitationsRef = collection(
-        db,
-        "liveStreams",
-        streamId,
-        "coHostInvitations"
-    );
-
-    const invitationsQuery = query(
-        invitationsRef,
-        where("invitedUserId", "==", auth.currentUser.uid),
-        where("status", "==", "pending"),
-        limit(1)
-    );
-
-    unsubscribeCoHostInvitations = onSnapshot(
-        invitationsQuery,
-        (snapshot) => {
-
-            if (snapshot.empty) {
-                coHostInvitationPanel.style.display = "none";
-                currentCoHostInvitationId = null;
-                return;
-            }
-
-            const invitationDoc = snapshot.docs[0];
-
-            currentCoHostInvitationId = invitationDoc.id;
-
-            const invitation = invitationDoc.data();
-
-            coHostInvitationMessage.textContent =
-                (invitation.hostName || "The host") +
-                " invited you to join this live stream as a co-host.";
-
-            coHostInvitationPanel.style.display = "block";
-
-        },
-        (error) => {
-            console.error("Co-host invitation listener error:", error);
-        }
-    );
-}
-
-
-// =====================================================
-// ACCEPT OR DECLINE CO-HOST INVITATION
-// =====================================================
-
-acceptCoHostInviteBtn.addEventListener("click", async () => {
-
-    if (!currentCoHostInvitationId || !streamId) {
-        return;
-    }
-
-    acceptCoHostInviteBtn.disabled = true;
-
-    try {
-
-        await updateDoc(
-            doc(
-                db,
-                "liveStreams",
-                streamId,
-                "coHostInvitations",
-                currentCoHostInvitationId
-            ),
-            {
-                status: "accepted",
-                respondedAt: serverTimestamp()
-            }
-        );
-
-        coHostInvitationPanel.style.display = "none";
-
-        console.log("Co-host invitation accepted.");
-
-    } catch (error) {
-
-        console.error("Could not accept invitation:", error);
-
-        alert("Could not accept the invitation. Please try again.");
-
-    } finally {
-
-        acceptCoHostInviteBtn.disabled = false;
-
-    }
-
-});
-
-
-declineCoHostInviteBtn.addEventListener("click", async () => {
-
-    if (!currentCoHostInvitationId || !streamId) {
-        return;
-    }
-
-    declineCoHostInviteBtn.disabled = true;
-
-    try {
-
-        await updateDoc(
-            doc(
-                db,
-                "liveStreams",
-                streamId,
-                "coHostInvitations",
-                currentCoHostInvitationId
-            ),
-            {
-                status: "declined",
-                respondedAt: serverTimestamp()
-            }
-        );
-
-        coHostInvitationPanel.style.display = "none";
-
-        console.log("Co-host invitation declined.");
-
-    } catch (error) {
-
-        console.error("Could not decline invitation:", error);
-
-        alert("Could not decline the invitation. Please try again.");
-
-    } finally {
-
-        declineCoHostInviteBtn.disabled = false;
-
-    }
-
-});
-
 
 let unsubscribeChat = null;
 let unsubscribeStreamStats = null;
@@ -326,13 +159,14 @@ auth.onAuthStateChanged(async user => {
 
     }
 
- currentUser = user;
-viewerId = user.uid;
+    currentUser = user;
+    viewerId = user.uid;
 
-// Generate a fresh ID for every viewing session.
+    // Generate a fresh ID for every viewing session.
 
-viewerSessionId =
-    `${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    viewerSessionId =
+        `${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
     try {
 
         await loadStream();
@@ -504,55 +338,58 @@ async function joinLive() {
 
 
     // =================================================
-// RECEIVE HOST AND CO-HOST VIDEO AND AUDIO
-// =================================================
+    // RECEIVE HOST VIDEO AND AUDIO
+    // =================================================
 
-const remoteMediaStream = new MediaStream();
+    const remoteMediaStream = new MediaStream();
 
-peerConnection.ontrack = async event => {
+    peerConnection.ontrack = async event => {
 
-    console.log(
-        "📡 Remote media received:",
-        event.track.kind,
-        event.track.id
-    );
-
-    // Add each incoming track only once
-    if (
-        !remoteMediaStream.getTracks().some(
-            track => track.id === event.track.id
-        )
-    ) {
-        remoteMediaStream.addTrack(event.track);
-    }
-
-    if (!remoteVideo) {
-        return;
-    }
-
-    remoteVideo.srcObject = remoteMediaStream;
-
-    // Allow viewers to hear incoming audio
-    remoteVideo.muted = false;
-    remoteVideo.volume = 1;
-    remoteVideo.autoplay = true;
-    remoteVideo.playsInline = true;
-
-    try {
-        await remoteVideo.play();
-
-        console.log("🔊 Live audio/video playback started.");
-
-    } catch (error) {
-
-        console.warn(
-            "Viewer playback requires user interaction:",
-            error
+        console.log(
+            "📡 Remote media received:",
+            event.track.kind,
+            event.track.id
         );
 
-    }
+        // Add each incoming track only once
 
-};
+        if (
+            !remoteMediaStream.getTracks().some(
+                track => track.id === event.track.id
+            )
+        ) {
+            remoteMediaStream.addTrack(event.track);
+        }
+
+        if (!remoteVideo) {
+            return;
+        }
+
+        remoteVideo.srcObject = remoteMediaStream;
+
+        // Allow viewers to hear incoming audio
+
+        remoteVideo.muted = false;
+        remoteVideo.volume = 1;
+        remoteVideo.autoplay = true;
+        remoteVideo.playsInline = true;
+
+        try {
+
+            await remoteVideo.play();
+
+            console.log("🔊 Live audio/video playback started.");
+
+        } catch (error) {
+
+            console.warn(
+                "Viewer playback requires user interaction:",
+                error
+            );
+
+        }
+
+    };
 
 
     // =================================================
@@ -573,10 +410,8 @@ peerConnection.ontrack = async event => {
                     db,
                     "liveStreams",
                     streamId,
-                  "viewers",
-
+                    "viewers",
                     viewerSessionId,
-
                     "viewerCandidates"
                 ),
 
@@ -640,49 +475,52 @@ peerConnection.ontrack = async event => {
         "liveStreams",
         streamId,
         "offers",
-         viewerSessionId
+        viewerSessionId
     );
 
-  await setDoc(viewerOfferRef, {
+    await setDoc(viewerOfferRef, {
 
-    type: offer.type,
+        type: offer.type,
 
-    sdp: offer.sdp,
+        sdp: offer.sdp,
 
-    viewerId: viewerId,
+        viewerId: viewerId,
 
-    sessionId: viewerSessionId,
+        sessionId: viewerSessionId,
 
-    createdAt: serverTimestamp()
+        createdAt: serverTimestamp()
 
-});
+    });
+
     console.log("Viewer offer sent");
 
 
     // =================================================
     // VIEWER ANSWER DOCUMENT
     // =================================================
-viewerAnswerRef = doc(
-    db,
-    "liveStreams",
-    streamId,
-    "viewers",
-    viewerSessionId
-);
+
+    viewerAnswerRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers",
+        viewerSessionId
+    );
 
 
     // =================================================
     // LISTEN FOR HOST ICE CANDIDATES
     // =================================================
 
- const hostCandidatesRef = collection(
-    db,
-    "liveStreams",
-    streamId,
-    "viewers",
-    viewerSessionId,
-    "hostCandidates"
-);
+    const hostCandidatesRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers",
+        viewerSessionId,
+        "hostCandidates"
+    );
+
     unsubscribeHostCandidates = onSnapshot(
 
         hostCandidatesRef,
@@ -820,8 +658,6 @@ viewerAnswerRef = doc(
         }
 
     );
-
-    listenForCoHostInvitations();
 
 }
 
@@ -1333,7 +1169,42 @@ async function cleanupViewer() {
     }
 
 
-    // CLOSE WEBRTC CONNECTION
+    // CLOSE CO-HOST CONNECTION IF CREATED
+
+    if (unsubscribeCoHostOffer) {
+
+        unsubscribeCoHostOffer();
+
+        unsubscribeCoHostOffer = null;
+
+    }
+
+    if (unsubscribeCoHostCandidates) {
+
+        unsubscribeCoHostCandidates();
+
+        unsubscribeCoHostCandidates = null;
+
+    }
+
+    if (coHostPeerConnection) {
+
+        try {
+            coHostPeerConnection.close();
+        } catch (error) {
+            console.error("Co-host connection cleanup error:", error);
+        }
+
+        coHostPeerConnection = null;
+
+    }
+
+    coHostMediaStream.getTracks().forEach(track => {
+        track.stop();
+    });
+
+
+    // CLOSE HOST WEBRTC CONNECTION
 
     if (peerConnection) {
 
