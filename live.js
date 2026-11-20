@@ -235,6 +235,10 @@ let coHostPeerConnection = null;
 let coHostMediaStream = null;
 let coHostId = null;
 let unsubscribeCoHostCandidates = null;
+let unsubscribeCoHostAnswer = null;
+let unsubscribeCoHostHostCandidates = null;
+let coHostRemoteStream = new MediaStream();
+let coHostViewerConnections = {};
 
 let isEnding = false;
 
