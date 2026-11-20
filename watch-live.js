@@ -71,9 +71,13 @@ const backBtn = document.getElementById("backBtn");
 
 let peerConnection = null;
 
-// CO-HOST CONNECTION SCAFFOLDING
+
+// CO-HOST WEBRTC CONNECTION
 let coHostPeerConnection = null;
 let coHostMediaStream = new MediaStream();
+
+let coHostInvitationId = null;
+let receivedCoHostCandidates = new Set();
 
 let viewerId = null;
 let viewerSessionId = null;
@@ -91,6 +95,7 @@ let unsubscribeHostCandidates = null;
 
 let unsubscribeCoHostOffer = null;
 let unsubscribeCoHostCandidates = null;
+let unsubscribeCoHostAnswer = null;
 
 let unsubscribeChat = null;
 let unsubscribeStreamStats = null;
@@ -175,14 +180,15 @@ auth.onAuthStateChanged(async user => {
             return;
         }
 
-        await joinLive();
+      await joinLive();
 
-        listenForChat();
+listenForCoHost();
 
-        listenForStreamStats();
+listenForChat();
 
-        listenForLikeEvents();
+listenForStreamStats();
 
+listenForLikeEvents();
     } catch (error) {
 
         console.error("Watch Live startup error:", error);
@@ -659,6 +665,294 @@ async function joinLive() {
 
     );
 
+}
+
+
+// =====================================================
+// LISTEN FOR ACCEPTED CO-HOST
+// =====================================================
+
+function listenForCoHost() {
+
+    const invitationsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations"
+    );
+
+    const acceptedQuery = query(
+        invitationsRef,
+        where("status", "==", "accepted"),
+        limit(1)
+    );
+
+    unsubscribeCoHostOffer = onSnapshot(
+        acceptedQuery,
+        snapshot => {
+
+            if (snapshot.empty) {
+                return;
+            }
+
+            const invitationDoc = snapshot.docs[0];
+
+            if (coHostInvitationId === invitationDoc.id) {
+                return;
+            }
+
+            coHostInvitationId = invitationDoc.id;
+
+            console.log(
+                "Accepted co-host found:",
+                coHostInvitationId
+            );
+
+            startCoHostViewerConnection();
+
+        },
+        error => {
+            console.error(
+                "Co-host invitation listener error:",
+                error
+            );
+        }
+    );
+}
+
+
+// =====================================================
+// START CO-HOST VIEWER CONNECTION
+// =====================================================
+
+async function startCoHostViewerConnection() {
+
+    if (
+        !coHostInvitationId ||
+        !viewerSessionId ||
+        streamEnded
+    ) {
+        return;
+    }
+
+    if (coHostPeerConnection) {
+        coHostPeerConnection.close();
+        coHostPeerConnection = null;
+    }
+
+    receivedCoHostCandidates.clear();
+
+    const coHostViewerRef = doc(
+    db,
+    "liveStreams",
+    streamId,
+    "coHostInvitations",
+    coHostInvitationId,
+    "viewers",
+    viewerSessionId
+);
+
+const coHostViewerCandidatesRef = collection(
+    coHostViewerRef,
+    "viewerCandidates"
+);
+
+const coHostHostCandidatesRef = collection(
+    coHostViewerRef,
+    "hostCandidates"
+);
+
+    const pc = new RTCPeerConnection(rtcConfig);
+
+
+    pc.onicecandidate = async event => {
+
+    if (!event.candidate) {
+        return;
+    }
+
+    try {
+
+        await addDoc(
+            coHostViewerCandidatesRef,
+            event.candidate.toJSON()
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Viewer co-host ICE error:",
+            error
+        );
+
+    }
+
+};
+    
+    coHostPeerConnection = pc;
+
+    coHostMediaStream = new MediaStream();
+
+    pc.ontrack = async event => {
+
+        if (
+            !coHostMediaStream.getTracks().some(
+                track => track.id === event.track.id
+            )
+        ) {
+            coHostMediaStream.addTrack(event.track);
+        }
+
+        if (!coHostVideo) {
+            return;
+        }
+
+        coHostVideo.srcObject = coHostMediaStream;
+        coHostVideo.muted = false;
+        coHostVideo.volume = 1;
+        coHostVideo.autoplay = true;
+        coHostVideo.playsInline = true;
+
+        try {
+            await coHostVideo.play();
+        } catch (error) {
+            console.warn("Co-host playback needs user interaction:", error);
+        }
+    };
+
+
+    // LISTEN FOR HOST CO-HOST ICE CANDIDATES
+// LISTEN FOR HOST CO-HOST ICE CANDIDATES
+
+let pendingCoHostHostCandidates = [];
+
+unsubscribeCoHostCandidates = onSnapshot(
+    coHostHostCandidatesRef,
+
+    async snapshot => {
+
+        for (const change of snapshot.docChanges()) {
+
+            if (change.type !== "added") {
+                continue;
+            }
+
+            if (receivedCoHostCandidates.has(change.doc.id)) {
+                continue;
+            }
+
+            receivedCoHostCandidates.add(change.doc.id);
+
+            const candidate = change.doc.data();
+
+            try {
+
+                if (pc.remoteDescription) {
+
+                    await pc.addIceCandidate(
+                        new RTCIceCandidate(candidate)
+                    );
+
+                } else {
+
+                    pendingCoHostHostCandidates.push(candidate);
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Host co-host ICE error:",
+                    error
+                );
+
+            }
+
+        }
+
+    },
+
+    error => {
+        console.error("Host co-host ICE listener error:", error);
+    }
+);
+    // CREATE AN OFFER FOR THE CO-HOST MEDIA
+
+try {
+
+    const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+    });
+
+    await pc.setLocalDescription(offer);
+
+    // SEND THE OFFER TO THE HOST
+
+    await setDoc(coHostViewerRef, {
+        offer: {
+            type: pc.localDescription.type,
+            sdp: pc.localDescription.sdp
+        },
+        viewerId: viewerId,
+        viewerSessionId: viewerSessionId,
+        createdAt: serverTimestamp()
+    });
+
+    console.log("Co-host viewer offer sent to host.");
+
+    // LISTEN FOR THE HOST'S ANSWER
+
+    let coHostAnswerApplied = false;
+
+    unsubscribeCoHostAnswer = onSnapshot(
+        coHostViewerRef,
+        async snapshot => {
+
+            if (
+                !snapshot.exists() ||
+                !snapshot.data().answer ||
+                coHostAnswerApplied ||
+                !coHostPeerConnection
+            ) {
+                return;
+            }
+
+            try {
+
+                const answer = snapshot.data().answer;
+
+                await pc.setRemoteDescription(
+                    new RTCSessionDescription(answer)
+                );
+
+                coHostAnswerApplied = true;
+
+                console.log("Host answer received for co-host media.");
+
+            } catch (error) {
+
+                console.error(
+                    "Co-host remote answer error:",
+                    error
+                );
+
+            }
+
+        },
+        error => {
+            console.error("Co-host answer listener error:", error);
+        }
+    );
+
+} catch (error) {
+
+    console.error(
+        "Unable to create co-host viewer offer:",
+        error
+    );
+
+}
 }
 
 
