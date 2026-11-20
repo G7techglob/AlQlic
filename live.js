@@ -1449,7 +1449,6 @@ async function receiveCoHostConnection(invitationId, invitation) {
         invitationId
     );
 
-    // Candidates FROM co-host TO host
     const coHostCandidatesRef = collection(
         db,
         "liveStreams",
@@ -1459,7 +1458,6 @@ async function receiveCoHostConnection(invitationId, invitation) {
         "coHostCandidates"
     );
 
-    // Candidates FROM host TO co-host
     const hostCandidatesRef = collection(
         db,
         "liveStreams",
@@ -1496,51 +1494,49 @@ async function receiveCoHostConnection(invitationId, invitation) {
         }
     };
 
-  pc.onconnectionstatechange = () => {
+    // MONITOR CO-HOST CONNECTION
+    pc.onconnectionstatechange = () => {
 
-    const state = pc.connectionState;
+        const state = pc.connectionState;
 
-    console.log("Co-host connection:", state);
+        console.log("Co-host connection:", state);
 
-    if (
-        state === "disconnected" ||
-        state === "failed" ||
-        state === "closed"
-    ) {
+        if (
+            state === "disconnected" ||
+            state === "failed" ||
+            state === "closed"
+        ) {
 
-        console.log("Co-host connection has ended.");
+            console.log("Co-host connection has ended.");
 
-        if (unsubscribeCoHostCandidates) {
-            unsubscribeCoHostCandidates();
-            unsubscribeCoHostCandidates = null;
+            if (unsubscribeCoHostCandidates) {
+                unsubscribeCoHostCandidates();
+                unsubscribeCoHostCandidates = null;
+            }
+
+            if (coHostPeerConnection === pc) {
+                coHostPeerConnection = null;
+            }
+
+            if (coHostMediaStream) {
+                coHostMediaStream.getTracks().forEach(track => {
+                    track.stop();
+                });
+
+                coHostMediaStream = null;
+            }
+
+            coHostId = null;
+
+            if (coHostInviteStatus) {
+                coHostInviteStatus.textContent =
+                    "Your co-host has disconnected.";
+            }
         }
+    };
 
-        if (coHostPeerConnection === pc) {
-            coHostPeerConnection = null;
-        }
-
-        // STOP RECEIVED CO-HOST MEDIA
-
-if (coHostMediaStream) {
-
-    coHostMediaStream.getTracks().forEach(track => {
-        track.stop();
-    });
-
-    coHostMediaStream = null;
-
-}
-
-coHostId = null;
-
-if (coHostInviteStatus) {
-    coHostInviteStatus.textContent =
-        "Your co-host has disconnected.";
-}
-
-}
-        
-        try {
+    // CONNECT TO CO-HOST
+    try {
 
         const invitationSnapshot = await getDoc(coHostRef);
 
@@ -1620,12 +1616,20 @@ if (coHostInviteStatus) {
 
         pc.close();
 
-        coHostPeerConnection = null;
+        if (coHostMediaStream) {
+            coHostMediaStream.getTracks().forEach(track => {
+                track.stop();
+            });
+        }
+
+        if (coHostPeerConnection === pc) {
+            coHostPeerConnection = null;
+        }
+
         coHostMediaStream = null;
         coHostId = null;
     }
 }
-
 
 // =====================================================
 // WAIT FOR ICE GATHERING
