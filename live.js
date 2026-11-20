@@ -1130,6 +1130,32 @@ if (
 
                 }
 
+                if (invitation.status === "left") {
+
+    console.log("Co-host left the livestream.");
+
+    if (coHostPeerConnection) {
+        coHostPeerConnection.close();
+        coHostPeerConnection = null;
+    }
+
+    if (unsubscribeCoHostCandidates) {
+        unsubscribeCoHostCandidates();
+        unsubscribeCoHostCandidates = null;
+    }
+
+    coHostMediaStream = null;
+    coHostId = null;
+
+    acceptedCoHostInvitations.delete(change.doc.id);
+
+    if (coHostInviteStatus) {
+        coHostInviteStatus.textContent =
+            "Your co-host has left the livestream.";
+    }
+
+}
+
             });
 
         },
@@ -1470,11 +1496,51 @@ async function receiveCoHostConnection(invitationId, invitation) {
         }
     };
 
-    pc.onconnectionstatechange = () => {
-        console.log("Co-host connection:", pc.connectionState);
-    };
+  pc.onconnectionstatechange = () => {
 
-    try {
+    const state = pc.connectionState;
+
+    console.log("Co-host connection:", state);
+
+    if (
+        state === "disconnected" ||
+        state === "failed" ||
+        state === "closed"
+    ) {
+
+        console.log("Co-host connection has ended.");
+
+        if (unsubscribeCoHostCandidates) {
+            unsubscribeCoHostCandidates();
+            unsubscribeCoHostCandidates = null;
+        }
+
+        if (coHostPeerConnection === pc) {
+            coHostPeerConnection = null;
+        }
+
+        // STOP RECEIVED CO-HOST MEDIA
+
+if (coHostMediaStream) {
+
+    coHostMediaStream.getTracks().forEach(track => {
+        track.stop();
+    });
+
+    coHostMediaStream = null;
+
+}
+
+coHostId = null;
+
+if (coHostInviteStatus) {
+    coHostInviteStatus.textContent =
+        "Your co-host has disconnected.";
+}
+
+}
+        
+        try {
 
         const invitationSnapshot = await getDoc(coHostRef);
 
@@ -1893,6 +1959,26 @@ async function endLive() {
         });
 
         peerConnections = {};
+
+        // CLOSE CO-HOST CONNECTION
+
+if (coHostPeerConnection) {
+
+    coHostPeerConnection.close();
+    coHostPeerConnection = null;
+
+}
+
+if (unsubscribeCoHostCandidates) {
+
+    unsubscribeCoHostCandidates();
+    unsubscribeCoHostCandidates = null;
+
+}
+
+coHostMediaStream = null;
+coHostRemoteStream = new MediaStream();
+coHostId = null;
 
 
         // STOP FIRESTORE LISTENERS
