@@ -227,6 +227,15 @@ let cameraEnabled = true;
 
 let peerConnections = {};
 
+// =====================================================
+// CO-HOST WEBRTC CONNECTION
+// =====================================================
+
+let coHostPeerConnection = null;
+let coHostMediaStream = null;
+let coHostId = null;
+let unsubscribeCoHostCandidates = null;
+
 let isEnding = false;
 
 let mediaRecorder = null;
@@ -237,6 +246,8 @@ let shouldSaveVideo = false;
 
 let unsubscribeViewers = null;
 let unsubscribeOffers = null;
+let unsubscribeCoHostInvitations = null;
+let acceptedCoHostInvitations = new Set();
 let unsubscribeMessages = null;
 
 let unsubscribeStreamStats = null;
@@ -1005,6 +1016,8 @@ async function saveLiveRecording() {
 // =====================================================
 function startSignaling() {
 
+    listenForCoHostResponses();
+
     console.log("📡 HOST signaling started.");
 
     const offersRef = collection(
@@ -1049,6 +1062,78 @@ function startSignaling() {
 
 }
 
+
+// =====================================================
+// LISTEN FOR CO-HOST INVITATION RESPONSES
+// =====================================================
+
+function listenForCoHostResponses() {
+
+    if (!streamId) return;
+
+    if (unsubscribeCoHostInvitations) {
+        unsubscribeCoHostInvitations();
+    }
+
+    const invitationsRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations"
+    );
+
+    unsubscribeCoHostInvitations = onSnapshot(
+        invitationsRef,
+        snapshot => {
+
+            snapshot.docChanges().forEach(change => {
+
+                if (change.type === "removed") return;
+
+                const invitation = change.doc.data();
+
+               
+if (
+    invitation.status === "accepted" &&
+    invitation.coHostOffer &&
+    !acceptedCoHostInvitations.has(change.doc.id)
+) {
+
+    acceptedCoHostInvitations.add(change.doc.id);
+
+    coHostInviteStatus.textContent =
+        "@" + invitation.invitedUsername +
+        " accepted your co-host invitation.";
+
+    console.log(
+        "Co-host invitation accepted:",
+        invitation.invitedUsername
+    );
+
+    receiveCoHostConnection(
+        change.doc.id,
+        invitation
+    );
+
+}
+
+
+                if (invitation.status === "declined") {
+
+                    coHostInviteStatus.textContent =
+                        "@" + invitation.invitedUsername +
+                        " declined your co-host invitation.";
+
+                }
+
+            });
+
+        },
+        error => {
+            console.error("Co-host response listener error:", error);
+        }
+    );
+}
 
 
 // =====================================================
@@ -1308,6 +1393,157 @@ async function createViewerConnection(sessionId, offerData) {
 }
 
 
+
+// =====================================================
+// RECEIVE CO-HOST AUDIO AND VIDEO
+// =====================================================
+
+async function receiveCoHostConnection(invitationId, invitation) {
+
+    if (coHostPeerConnection) {
+        console.warn("A co-host is already connected.");
+        return;
+    }
+
+    coHostId = invitation.invitedUserId;
+
+    const pc = new RTCPeerConnection(rtcConfig);
+
+    coHostPeerConnection = pc;
+
+    coHostMediaStream = new MediaStream();
+
+    const coHostRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId
+    );
+
+    const candidatesRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId,
+        "coHostCandidates"
+    );
+
+    pc.ontrack = event => {
+
+        if (!coHostMediaStream.getTracks().some(
+            track => track.id === event.track.id
+        )) {
+            coHostMediaStream.addTrack(event.track);
+        }
+
+        console.log(
+            "Co-host media received:",
+            event.track.kind
+        );
+
+    };
+
+    pc.onicecandidate = async event => {
+
+        if (!event.candidate) return;
+
+        try {
+
+            await addDoc(candidatesRef, event.candidate.toJSON());
+
+        } catch (error) {
+
+            console.error("Co-host ICE error:", error);
+
+        }
+
+    };
+
+    pc.onconnectionstatechange = () => {
+
+        console.log("Co-host connection:", pc.connectionState);
+
+    };
+
+    try {
+
+        const invitationSnapshot = await getDoc(coHostRef);
+
+        if (!invitationSnapshot.exists()) {
+            throw new Error("Co-host invitation no longer exists.");
+        }
+
+        const data = invitationSnapshot.data();
+
+        if (!data.coHostOffer) {
+            throw new Error("Co-host offer has not been received.");
+        }
+
+        await pc.setRemoteDescription(
+            new RTCSessionDescription(data.coHostOffer)
+        );
+
+        const answer = await pc.createAnswer();
+
+        await pc.setLocalDescription(answer);
+
+        await waitForIceGathering(pc);
+
+        await updateDoc(coHostRef, {
+            coHostAnswer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            }
+        });
+
+        console.log("Co-host answer sent.");
+
+        unsubscribeCoHostCandidates = onSnapshot(
+            candidatesRef,
+            async snapshot => {
+
+                for (const change of snapshot.docChanges()) {
+
+                    if (change.type !== "added") continue;
+
+                    try {
+
+                        if (pc.remoteDescription) {
+
+                            await pc.addIceCandidate(
+                                new RTCIceCandidate(change.doc.data())
+                            );
+
+                        }
+
+                    } catch (error) {
+
+                        console.error("Co-host candidate error:", error);
+
+                    }
+
+                }
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error("Unable to receive co-host media:", error);
+
+        pc.close();
+
+        coHostPeerConnection = null;
+        coHostMediaStream = null;
+        coHostId = null;
+
+    }
+
+}
+
+
 // =====================================================
 // WAIT FOR ICE GATHERING
 // =====================================================
@@ -1523,7 +1759,13 @@ function stopLiveListeners() {
     if (unsubscribeOffers) {
         unsubscribeOffers();
         unsubscribeOffers = null;
+    
     }
+
+    if (unsubscribeCoHostInvitations) {
+    unsubscribeCoHostInvitations();
+    unsubscribeCoHostInvitations = null;
+}
 
     if (unsubscribeMessages) {
         unsubscribeMessages();
