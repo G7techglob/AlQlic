@@ -6,13 +6,15 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/f
 import {
     doc,
     getDoc,
+    getDocs,
     updateDoc,
     collection,
     query,
     where,
     limit,
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+    addDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 console.log("AlQlic Co-Host page loaded");
@@ -47,13 +49,34 @@ let coHostStream = null;
 let microphoneEnabled = true;
 let cameraEnabled = true;
 
+let coHostPeerConnection = null;
+
 let unsubscribeInvitations = null;
+let unsubscribeCoHostAnswer = null;
+let unsubscribeHostCandidates = null;
+
+let receivedHostCandidates = new Set();
+
+// =====================================================
+// WEBRTC CONFIGURATION
+// =====================================================
+
+const rtcConfig = {
+    iceServers: [
+        {
+            urls: "stun:stun.l.google.com:19302"
+        },
+        {
+            urls: "stun:stun1.l.google.com:19302"
+        }
+    ]
+};
 
 // =====================================================
 // WAIT FOR LOGIN
 // =====================================================
 
-auth.onAuthStateChanged(async (user) => {
+onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
 
