@@ -1412,9 +1412,7 @@ async function receiveCoHostConnection(invitationId, invitation) {
     coHostId = invitation.invitedUserId;
 
     const pc = new RTCPeerConnection(rtcConfig);
-
     coHostPeerConnection = pc;
-
     coHostMediaStream = new MediaStream();
 
     const coHostRef = doc(
@@ -1425,7 +1423,8 @@ async function receiveCoHostConnection(invitationId, invitation) {
         invitationId
     );
 
-    const candidatesRef = collection(
+    // Candidates FROM co-host TO host
+    const coHostCandidatesRef = collection(
         db,
         "liveStreams",
         streamId,
@@ -1434,6 +1433,17 @@ async function receiveCoHostConnection(invitationId, invitation) {
         "coHostCandidates"
     );
 
+    // Candidates FROM host TO co-host
+    const hostCandidatesRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId,
+        "hostCoHostCandidates"
+    );
+
+    // RECEIVE CO-HOST AUDIO AND VIDEO
     pc.ontrack = event => {
 
         if (!coHostMediaStream.getTracks().some(
@@ -1442,33 +1452,26 @@ async function receiveCoHostConnection(invitationId, invitation) {
             coHostMediaStream.addTrack(event.track);
         }
 
-        console.log(
-            "Co-host media received:",
-            event.track.kind
-        );
-
+        console.log("Co-host media received:", event.track.kind);
     };
 
+    // SEND HOST ICE CANDIDATES TO CO-HOST
     pc.onicecandidate = async event => {
 
         if (!event.candidate) return;
 
         try {
-
-            await addDoc(candidatesRef, event.candidate.toJSON());
-
+            await addDoc(
+                hostCandidatesRef,
+                event.candidate.toJSON()
+            );
         } catch (error) {
-
-            console.error("Co-host ICE error:", error);
-
+            console.error("Host co-host ICE error:", error);
         }
-
     };
 
     pc.onconnectionstatechange = () => {
-
         console.log("Co-host connection:", pc.connectionState);
-
     };
 
     try {
@@ -1485,27 +1488,14 @@ async function receiveCoHostConnection(invitationId, invitation) {
             throw new Error("Co-host offer has not been received.");
         }
 
+        // APPLY CO-HOST OFFER
         await pc.setRemoteDescription(
             new RTCSessionDescription(data.coHostOffer)
         );
 
-        const answer = await pc.createAnswer();
-
-        await pc.setLocalDescription(answer);
-
-        await waitForIceGathering(pc);
-
-        await updateDoc(coHostRef, {
-            coHostAnswer: {
-                type: pc.localDescription.type,
-                sdp: pc.localDescription.sdp
-            }
-        });
-
-        console.log("Co-host answer sent.");
-
+        // RECEIVE ICE CANDIDATES FROM CO-HOST
         unsubscribeCoHostCandidates = onSnapshot(
-            candidatesRef,
+            coHostCandidatesRef,
             async snapshot => {
 
                 for (const change of snapshot.docChanges()) {
@@ -1514,37 +1504,60 @@ async function receiveCoHostConnection(invitationId, invitation) {
 
                     try {
 
-                        if (pc.remoteDescription) {
-
+                        if (
+                            pc.remoteDescription &&
+                            pc.connectionState !== "closed"
+                        ) {
                             await pc.addIceCandidate(
                                 new RTCIceCandidate(change.doc.data())
                             );
 
+                            console.log("Co-host ICE candidate received.");
                         }
 
                     } catch (error) {
-
                         console.error("Co-host candidate error:", error);
-
                     }
-
                 }
-
+            },
+            error => {
+                console.error("Co-host ICE listener error:", error);
             }
         );
+
+        // CREATE HOST ANSWER
+        const answer = await pc.createAnswer();
+
+        await pc.setLocalDescription(answer);
+
+        await waitForIceGathering(pc);
+
+        // SEND ANSWER TO CO-HOST
+        await updateDoc(coHostRef, {
+            coHostAnswer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            },
+            coHostConnectedAt: serverTimestamp()
+        });
+
+        console.log("Host answer sent to co-host.");
 
     } catch (error) {
 
         console.error("Unable to receive co-host media:", error);
+
+        if (unsubscribeCoHostCandidates) {
+            unsubscribeCoHostCandidates();
+            unsubscribeCoHostCandidates = null;
+        }
 
         pc.close();
 
         coHostPeerConnection = null;
         coHostMediaStream = null;
         coHostId = null;
-
     }
-
 }
 
 
