@@ -239,6 +239,8 @@ let unsubscribeCoHostAnswer = null;
 let unsubscribeCoHostHostCandidates = null;
 let coHostRemoteStream = new MediaStream();
 let coHostViewerConnections = {};
+let unsubscribeCoHostViewerOffers = null;
+let unsubscribeCoHostViewerCandidates = {};
 
 let isEnding = false;
 
@@ -1477,7 +1479,16 @@ async function receiveCoHostConnection(invitationId, invitation) {
         }
 
         console.log("Co-host media received:", event.track.kind);
+
+        if (
+    coHostMediaStream.getAudioTracks().length > 0 &&
+    coHostMediaStream.getVideoTracks().length > 0
+) {
+    listenForCoHostViewerOffers(invitationId);
+}
     };
+
+    
 
     // SEND HOST ICE CANDIDATES TO CO-HOST
     pc.onicecandidate = async event => {
@@ -1508,6 +1519,32 @@ async function receiveCoHostConnection(invitationId, invitation) {
         ) {
 
             console.log("Co-host connection has ended.");
+
+            // STOP CO-HOST VIEWER RELAY LISTENER
+
+if (unsubscribeCoHostViewerOffers) {
+    unsubscribeCoHostViewerOffers();
+    unsubscribeCoHostViewerOffers = null;
+}
+
+// CLOSE ALL CO-HOST VIEWER RELAY CONNECTIONS
+
+Object.keys(coHostViewerConnections).forEach(viewerSessionId => {
+
+    const viewerPC = coHostViewerConnections[viewerSessionId];
+
+    if (viewerPC) {
+        viewerPC.close();
+    }
+
+    delete coHostViewerConnections[viewerSessionId];
+
+    if (unsubscribeCoHostViewerCandidates[viewerSessionId]) {
+        unsubscribeCoHostViewerCandidates[viewerSessionId]();
+        delete unsubscribeCoHostViewerCandidates[viewerSessionId];
+    }
+
+});
 
             if (unsubscribeCoHostCandidates) {
                 unsubscribeCoHostCandidates();
@@ -1629,6 +1666,246 @@ async function receiveCoHostConnection(invitationId, invitation) {
         coHostMediaStream = null;
         coHostId = null;
     }
+}
+
+// =====================================================
+// LISTEN FOR VIEWERS WHO NEED CO-HOST MEDIA
+// =====================================================
+
+function listenForCoHostViewerOffers(invitationId) {
+
+    if (unsubscribeCoHostViewerOffers) {
+        unsubscribeCoHostViewerOffers();
+        unsubscribeCoHostViewerOffers = null;
+    }
+
+    const viewersRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId,
+        "viewers"
+    );
+
+    unsubscribeCoHostViewerOffers = onSnapshot(
+        viewersRef,
+        snapshot => {
+
+            snapshot.docChanges().forEach(change => {
+
+                if (change.type !== "added" &&
+                    change.type !== "modified") {
+                    return;
+                }
+
+                const viewerData = change.doc.data();
+                const viewerSessionId = change.doc.id;
+
+                if (!viewerData.offer) {
+                    return;
+                }
+
+                if (coHostViewerConnections[viewerSessionId]) {
+                    return;
+                }
+
+                console.log(
+                    "Co-host relay offer received:",
+                    viewerSessionId
+                );
+
+               connectCoHostViewer(
+    invitationId,
+    viewerSessionId,
+    viewerData
+);
+            });
+        },
+        error => {
+            console.error(
+                "Co-host viewer offer listener error:",
+                error
+            );
+        }
+    );
+}
+
+// =====================================================
+// CONNECT VIEWER TO CO-HOST MEDIA
+// =====================================================
+
+async function connectCoHostViewer(
+    invitationId,
+    viewerSessionId,
+    viewerData
+) {
+
+    if (coHostViewerConnections[viewerSessionId]) {
+        return;
+    }
+
+    if (!coHostMediaStream) {
+        console.warn("Co-host media is not ready.");
+        return;
+    }
+
+    const viewerRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId,
+        "viewers",
+        viewerSessionId
+    );
+
+    const viewerCandidatesRef = collection(
+        viewerRef,
+        "viewerCandidates"
+    );
+
+    const hostCandidatesRef = collection(
+        viewerRef,
+        "hostCandidates"
+    );
+
+    const pc = new RTCPeerConnection(rtcConfig);
+
+    coHostViewerConnections[viewerSessionId] = pc;
+
+    let pendingCandidates = [];
+
+    // SEND CO-HOST TRACKS TO THIS VIEWER
+    coHostMediaStream.getTracks().forEach(track => {
+        pc.addTrack(track, coHostMediaStream);
+    });
+
+    // SEND HOST ICE CANDIDATES
+    pc.onicecandidate = async event => {
+
+        if (!event.candidate) return;
+
+        try {
+            await addDoc(
+                hostCandidatesRef,
+                event.candidate.toJSON()
+            );
+        } catch (error) {
+            console.error("Co-host relay host ICE error:", error);
+        }
+    };
+
+    // RECEIVE VIEWER ICE CANDIDATES
+    unsubscribeCoHostViewerCandidates[viewerSessionId] =
+        onSnapshot(
+            viewerCandidatesRef,
+            async snapshot => {
+
+                for (const change of snapshot.docChanges()) {
+
+                    if (change.type !== "added") continue;
+
+                    const candidateData = change.doc.data();
+
+                    if (!pc.remoteDescription) {
+                        pendingCandidates.push(candidateData);
+                        continue;
+                    }
+
+                    try {
+                        await pc.addIceCandidate(
+                            new RTCIceCandidate(candidateData)
+                        );
+                    } catch (error) {
+                        console.error(
+                            "Co-host relay viewer ICE error:",
+                            error
+                        );
+                    }
+                }
+            }
+        );
+
+    try {
+
+        // APPLY VIEWER OFFER
+        await pc.setRemoteDescription(
+            new RTCSessionDescription(viewerData.offer)
+        );
+
+        // APPLY EARLY VIEWER ICE CANDIDATES
+        for (const candidateData of pendingCandidates) {
+
+            try {
+                await pc.addIceCandidate(
+                    new RTCIceCandidate(candidateData)
+                );
+            } catch (error) {
+                console.error(
+                    "Pending co-host relay ICE error:",
+                    error
+                );
+            }
+        }
+
+        pendingCandidates = [];
+
+        // CREATE HOST ANSWER
+        const answer = await pc.createAnswer();
+
+        await pc.setLocalDescription(answer);
+
+        await waitForIceGathering(pc);
+
+        // SEND ANSWER TO VIEWER
+        await updateDoc(viewerRef, {
+            answer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            }
+        });
+
+        console.log(
+            "Co-host relay answer sent to viewer:",
+            viewerSessionId
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Unable to connect viewer to co-host:",
+            error
+        );
+
+        pc.close();
+
+        delete coHostViewerConnections[viewerSessionId];
+
+        if (unsubscribeCoHostViewerCandidates[viewerSessionId]) {
+            unsubscribeCoHostViewerCandidates[viewerSessionId]();
+            delete unsubscribeCoHostViewerCandidates[viewerSessionId];
+        }
+    }
+
+    // MONITOR VIEWER RELAY CONNECTION
+    pc.onconnectionstatechange = () => {
+
+        if (
+            pc.connectionState === "failed" ||
+            pc.connectionState === "closed"
+        ) {
+
+            pc.close();
+
+            delete coHostViewerConnections[viewerSessionId];
+
+            if (unsubscribeCoHostViewerCandidates[viewerSessionId]) {
+                unsubscribeCoHostViewerCandidates[viewerSessionId]();
+                delete unsubscribeCoHostViewerCandidates[viewerSessionId];
+            }
+        }
+    };
 }
 
 // =====================================================
@@ -1852,6 +2129,10 @@ function stopLiveListeners() {
     if (unsubscribeCoHostInvitations) {
     unsubscribeCoHostInvitations();
     unsubscribeCoHostInvitations = null;
+        if (unsubscribeCoHostViewerOffers) {
+    unsubscribeCoHostViewerOffers();
+    unsubscribeCoHostViewerOffers = null;
+}
 }
 
     if (unsubscribeMessages) {
@@ -1965,6 +2246,27 @@ async function endLive() {
         peerConnections = {};
 
         // CLOSE CO-HOST CONNECTION
+
+
+        // CLOSE CO-HOST VIEWER RELAY CONNECTIONS
+
+Object.keys(coHostViewerConnections).forEach(viewerSessionId => {
+
+    const pc = coHostViewerConnections[viewerSessionId];
+
+    if (pc) {
+        pc.close();
+    }
+
+    delete coHostViewerConnections[viewerSessionId];
+
+    if (unsubscribeCoHostViewerCandidates[viewerSessionId]) {
+        unsubscribeCoHostViewerCandidates[viewerSessionId]();
+        delete unsubscribeCoHostViewerCandidates[viewerSessionId];
+    }
+
+});
+        
 
 if (coHostPeerConnection) {
 
