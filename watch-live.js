@@ -926,6 +926,26 @@ try {
                     new RTCSessionDescription(answer)
                 );
 
+                // PROCESS HOST ICE CANDIDATES THAT ARRIVED EARLY
+
+for (const candidateData of pendingCoHostHostCandidates) {
+    try {
+        await pc.addIceCandidate(
+            new RTCIceCandidate(candidateData)
+        );
+
+        console.log("Pending co-host ICE candidate added.");
+
+    } catch (error) {
+        console.error(
+            "Pending co-host ICE error:",
+            error
+        );
+    }
+}
+
+pendingCoHostHostCandidates = [];
+                
                 coHostAnswerApplied = true;
 
                 console.log("Host answer received for co-host media.");
