@@ -571,3 +571,53 @@ body {
 .live-container.host-fullscreen .stream-info {
     display: none !important;
 }
+
+
+/* =====================================
+   CO-HOST INVITATION PANEL
+===================================== */
+
+#coHostInvitePanel {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(90%, 380px);
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 22px;
+    border-radius: 16px;
+    background: #202020;
+    color: #fff;
+    z-index: 9999 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+#coHostInvitePanel h3 {
+    margin-top: 0;
+}
+
+#coHostInvitePanel input {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 15px 0;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background: #111;
+    color: #fff;
+}
+
+#coHostInvitePanel button {
+    padding: 11px 14px;
+    margin: 5px 4px 5px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#coHostInviteMessage {
+    overflow-wrap: anywhere;
+    font-size: 13px;
+}
+
