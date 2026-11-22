@@ -241,6 +241,7 @@ let coHostRemoteStream = new MediaStream();
 let coHostViewerConnections = {};
 let unsubscribeCoHostViewerOffers = null;
 let unsubscribeCoHostViewerCandidates = {};
+let coHostViewerOffersStarted = false;
 
 let isEnding = false;
 
@@ -1469,25 +1470,28 @@ async function receiveCoHostConnection(invitationId, invitation) {
         "hostCoHostCandidates"
     );
 
-    // RECEIVE CO-HOST AUDIO AND VIDEO
-    pc.ontrack = event => {
+ // RECEIVE CO-HOST AUDIO AND VIDEO
+pc.ontrack = event => {
 
-        if (!coHostMediaStream.getTracks().some(
-            track => track.id === event.track.id
-        )) {
-            coHostMediaStream.addTrack(event.track);
-        }
+    if (!coHostMediaStream.getTracks().some(
+        track => track.id === event.track.id
+    )) {
+        coHostMediaStream.addTrack(event.track);
+    }
 
-        console.log("Co-host media received:", event.track.kind);
+    console.log("Co-host media received:", event.track.kind);
 
-        if (
-    coHostMediaStream.getAudioTracks().length > 0 &&
-    coHostMediaStream.getVideoTracks().length > 0
-) {
-    listenForCoHostViewerOffers(invitationId);
-}
-    };
+    if (
+        coHostMediaStream.getAudioTracks().length > 0 &&
+        coHostMediaStream.getVideoTracks().length > 0 &&
+        !coHostViewerOffersStarted
+    ) {
 
+        coHostViewerOffersStarted = true;
+
+        listenForCoHostViewerOffers(invitationId);
+    }
+};
     
 
     // SEND HOST ICE CANDIDATES TO CO-HOST
@@ -1564,6 +1568,8 @@ Object.keys(coHostViewerConnections).forEach(viewerSessionId => {
             }
 
             coHostId = null;
+
+            coHostViewerOffersStarted = false;
 
             if (coHostInviteStatus) {
                 coHostInviteStatus.textContent =
@@ -2123,17 +2129,17 @@ function stopLiveListeners() {
     if (unsubscribeOffers) {
         unsubscribeOffers();
         unsubscribeOffers = null;
-    
     }
 
     if (unsubscribeCoHostInvitations) {
-    unsubscribeCoHostInvitations();
-    unsubscribeCoHostInvitations = null;
-        if (unsubscribeCoHostViewerOffers) {
-    unsubscribeCoHostViewerOffers();
-    unsubscribeCoHostViewerOffers = null;
-}
-}
+        unsubscribeCoHostInvitations();
+        unsubscribeCoHostInvitations = null;
+    }
+
+    if (unsubscribeCoHostViewerOffers) {
+        unsubscribeCoHostViewerOffers();
+        unsubscribeCoHostViewerOffers = null;
+    }
 
     if (unsubscribeMessages) {
         unsubscribeMessages();
@@ -2148,10 +2154,9 @@ function stopLiveListeners() {
     if (unsubscribeLikeEvents) {
         unsubscribeLikeEvents();
         unsubscribeLikeEvents = null;
-        
     }
 
-        Object.keys(unsubscribeViewerCandidates).forEach(sessionId => {
+    Object.keys(unsubscribeViewerCandidates).forEach(sessionId => {
 
         unsubscribeViewerCandidates[sessionId]();
 
@@ -2159,9 +2164,15 @@ function stopLiveListeners() {
 
     });
 
+    Object.keys(unsubscribeCoHostViewerCandidates).forEach(viewerSessionId => {
+
+        unsubscribeCoHostViewerCandidates[viewerSessionId]();
+
+        delete unsubscribeCoHostViewerCandidates[viewerSessionId];
+
+    });
+
 }
-
-
 // =====================================================
 // END LIVE
 // =====================================================
