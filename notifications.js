@@ -25,8 +25,11 @@ function buildNotificationText(type) {
     case "comment":
       return " commented on your post 💬";
 
-    case "live":
+      case "live":
       return " is LIVE 🔴";
+
+    case "cohost":
+      return " invited you to join their live stream as a co-host 👥";
 
     default:
       return " sent a notification";
@@ -139,21 +142,27 @@ senderPhoto.addEventListener("click", (e) => {
 
   if (notification.type === "follow") {
     window.location.href = `user.html?uid=${notification.senderId}`;
+
+  } else if (notification.type === "cohost") {
+    window.location.href = "co-host.html";
+
   } else {
     window.location.href = `post.html?id=${notification.postId}`;
   }
 });
-
 senderName.addEventListener("click", (e) => {
   e.stopPropagation();
 
   if (notification.type === "follow") {
     window.location.href = `user.html?uid=${notification.senderId}`;
+
+  } else if (notification.type === "cohost") {
+    window.location.href = "co-host.html";
+
   } else {
     window.location.href = `post.html?id=${notification.postId}`;
   }
-});
-            wrapper.style.cursor = "pointer";
+});            wrapper.style.cursor = "pointer";
 
 wrapper.addEventListener("click", () => {
 
@@ -179,15 +188,18 @@ wrapper.addEventListener("click", () => {
       return;
     }
 
-    window.location.href =
+       window.location.href =
       `watch-live.html?streamId=${encodeURIComponent(
         notification.streamId
       )}`;
 
+  } else if (notification.type === "cohost") {
+
+    window.location.href = "co-host.html";
+
   }
 
 });
-
             container.appendChild(wrapper);
           });
         },
