@@ -549,7 +549,7 @@ if (coHostUsernameInput) {
 
         coHostUserSuggestions.innerHTML = "";
 
-        if (username.length < 2) return;
+        if (username.length < 1) return;
 
         coHostUserSuggestions.textContent = "Searching users...";
 
@@ -571,7 +571,7 @@ if (coHostUsernameInput) {
                     .trim()
                     .toLowerCase();
 
-                return storedUsername.startsWith(username);
+               return storedUsername.includes(username);
 
             }).slice(0, 8);
 
