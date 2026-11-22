@@ -60,7 +60,7 @@ const sendCoHostInviteBtn = $("sendCoHostInviteBtn");
 const coHostUsernameInput = $("coHostUsername");
 const coHostInvitePanel = $("coHostInvitePanel");
 const coHostInviteMessage = $("coHostInviteMessage");
-
+const coHostUserSuggestions = $("coHostUserSuggestions");
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -530,8 +530,103 @@ function listenForViewerCount() {
 }
 
 // =====================================================
-// CO-HOST INVITATIONS
+// SEARCH AND DISPLAY ALQLIC USER SUGGESTIONS
 // =====================================================
+
+let coHostSearchRequest = 0;
+
+if (coHostUsernameInput) {
+
+    coHostUsernameInput.addEventListener("input", async () => {
+
+        const username = coHostUsernameInput.value
+            .trim()
+            .replace(/^@/, "")
+            .toLowerCase();
+
+        const requestId = ++coHostSearchRequest;
+
+        if (coHostUserSuggestions) {
+            coHostUserSuggestions.innerHTML = "";
+        }
+
+        if (username.length < 2) return;
+
+        if (coHostUserSuggestions) {
+            coHostUserSuggestions.textContent = "Searching users...";
+        }
+
+        try {
+
+            const usersRef = collection(db, "users");
+
+            const usersQuery = query(
+                usersRef,
+                where("username", ">=", username),
+                where("username", "<=", username + "\uf8ff"),
+                limit(8)
+            );
+
+            const usersSnapshot = await getDocs(usersQuery);
+
+            if (requestId !== coHostSearchRequest) return;
+
+            if (!coHostUserSuggestions) return;
+
+            coHostUserSuggestions.innerHTML = "";
+
+            const matchingUsers = usersSnapshot.docs.filter(
+                userDoc => userDoc.id !== currentUser.uid
+            );
+
+            if (matchingUsers.length === 0) {
+                coHostUserSuggestions.textContent = "No matching users found.";
+                return;
+            }
+
+            matchingUsers.forEach(userDoc => {
+
+                const user = userDoc.data();
+
+                const usernameValue = user.username || "";
+
+                if (!usernameValue) return;
+
+                const suggestion = document.createElement("button");
+
+                suggestion.type = "button";
+                suggestion.className = "co-host-user-suggestion";
+
+                suggestion.textContent =
+                    `${user.name || usernameValue} (@${usernameValue})`;
+
+                suggestion.addEventListener("click", () => {
+
+                    coHostUsernameInput.value = usernameValue;
+
+                    coHostUserSuggestions.innerHTML = "";
+
+                });
+
+                coHostUserSuggestions.appendChild(suggestion);
+
+            });
+
+        } catch (error) {
+
+            console.error("Co-host user search failed:", error);
+
+            if (requestId === coHostSearchRequest) {
+                coHostUserSuggestions.textContent =
+                    "Unable to search users. Check Firestore permissions.";
+            }
+
+        }
+
+    });
+
+}
+
 
 if (inviteCoHostBtn && coHostInvitePanel) {
     inviteCoHostBtn.addEventListener("click", () => {
@@ -552,8 +647,11 @@ if (sendCoHostInviteBtn) {
 }
 
 async function sendCoHostInvitation() {
-    const username = coHostUsernameInput?.value?.trim().replace(/^@/, "");
-
+    const username = coHostUsernameInput?.value
+        ?.trim()
+        .replace(/^@/, "")
+        .toLowerCase();
+    
     if (!username) {
         showInviteMessage("Enter the user's username.");
         return;
