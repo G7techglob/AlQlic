@@ -17,98 +17,123 @@ import {
     addDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-console.log("AlQlic Co-Host page loaded");
-
 // =====================================================
-// PAGE ELEMENTS
+// ALQLIC LIVE — CO-HOST
 // =====================================================
 
-const invitationSection = document.getElementById("invitationSection");
-const invitationMessage = document.getElementById("invitationMessage");
+const $ = id => document.getElementById(id);
 
-const acceptInviteBtn = document.getElementById("acceptInviteBtn");
-const declineInviteBtn = document.getElementById("declineInviteBtn");
+const invitationSection = $("invitationSection");
+const invitationMessage = $("invitationMessage");
+const acceptInviteBtn = $("acceptInviteBtn");
+const declineInviteBtn = $("declineInviteBtn");
 
-const coHostLiveSection = document.getElementById("coHostLiveSection");
-const coHostLocalVideo = document.getElementById("coHostLocalVideo");
-
-const coHostMicBtn = document.getElementById("coHostMicBtn");
-const coHostCameraBtn = document.getElementById("coHostCameraBtn");
-const leaveCoHostBtn = document.getElementById("leaveCoHostBtn");
-
-const coHostStatus = document.getElementById("coHostStatus");
-
-// =====================================================
-// STATE
-// =====================================================
-
-let currentInvitationId = null;
-let currentStreamId = null;
-let coHostStream = null;
-
-let microphoneEnabled = true;
-let cameraEnabled = true;
-
-let coHostPeerConnection = null;
-
-let unsubscribeInvitations = null;
-let unsubscribeCoHostAnswer = null;
-let unsubscribeHostCandidates = null;
-
-let receivedHostCandidates = new Set();
-
-// =====================================================
-// WEBRTC CONFIGURATION
-// =====================================================
+const coHostLiveSection = $("coHostLiveSection");
+const coHostLocalVideo = $("coHostLocalVideo");
+const coHostMicBtn = $("coHostMicBtn");
+const coHostCameraBtn = $("coHostCameraBtn");
+const leaveCoHostBtn = $("leaveCoHostBtn");
+const coHostStatus = $("coHostStatus");
 
 const rtcConfig = {
     iceServers: [
-        {
-            urls: "stun:stun.l.google.com:19302"
-        },
-        {
-            urls: "stun:stun1.l.google.com:19302"
-        }
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
     ]
 };
 
-// =====================================================
-// WAIT FOR LOGIN
-// =====================================================
+let currentUser = null;
+let currentInvitation = null;
+let currentInvitationId = null;
+let currentStreamId = null;
 
-onAuthStateChanged(auth, async (user) => {
+let localStream = null;
+let peerConnection = null;
 
-    if (!user) {
+let unsubscribeHostCandidates = null;
+let unsubscribeInvitation = null;
 
-        coHostStatus.textContent = "Please log in to join as a co-host.";
+let micEnabled = true;
+let cameraEnabled = true;
+let busy = false;
+let leaving = false;
 
-        invitationSection.style.display = "none";
+const seenHostCandidates = new Set();
 
-        return;
+function setStatus(message) {
+    if (coHostStatus) coHostStatus.textContent = message;
+    console.log("[AlQlic Co-host]", message);
+}
+
+function showInvitation(message) {
+    if (invitationMessage) invitationMessage.textContent = message;
+}
+
+function stopLocalMedia() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            try {
+                track.stop();
+            } catch (_) {}
+        });
     }
 
-    console.log("Co-host logged in:", user.uid);
+    localStream = null;
 
-    await findCoHostInvitation(user.uid);
+    if (coHostLocalVideo) {
+        coHostLocalVideo.srcObject = null;
+    }
+}
 
-});
+function closeConnection() {
+    if (peerConnection) {
+        try {
+            peerConnection.onicecandidate = null;
+            peerConnection.ontrack = null;
+            peerConnection.onconnectionstatechange = null;
+            peerConnection.close();
+        } catch (_) {}
+    }
+
+    peerConnection = null;
+}
+
+function stopInvitationListeners() {
+    if (unsubscribeHostCandidates) {
+        unsubscribeHostCandidates();
+        unsubscribeHostCandidates = null;
+    }
+
+    if (unsubscribeInvitation) {
+        unsubscribeInvitation();
+        unsubscribeInvitation = null;
+    }
+}
+
+function getInvitationRef() {
+    return doc(
+        db,
+        "liveStreams",
+        currentStreamId,
+        "coHostInvitations",
+        currentInvitationId
+    );
+}
 
 // =====================================================
 // FIND PENDING INVITATION
 // =====================================================
 
-async function findCoHostInvitation(userId) {
-
-    coHostStatus.textContent = "Checking for invitations...";
-
+async function findPendingInvitation(user) {
     try {
-
         const streamsSnapshot = await getDocs(
-            collection(db, "liveStreams")
+            query(
+                collection(db, "liveStreams"),
+                where("status", "==", "live")
+            )
         );
 
         for (const streamDoc of streamsSnapshot.docs) {
-
             const invitationsRef = collection(
                 db,
                 "liveStreams",
@@ -116,525 +141,409 @@ async function findCoHostInvitation(userId) {
                 "coHostInvitations"
             );
 
-            const invitationsQuery = query(
-                invitationsRef,
-                where("invitedUserId", "==", userId),
-                where("status", "==", "pending"),
-                limit(1)
+            const invitationsSnapshot = await getDocs(
+                query(
+                    invitationsRef,
+                    where("invitedUserId", "==", user.uid),
+                    where("status", "==", "pending"),
+                    limit(1)
+                )
             );
 
-            const invitationSnapshot = await getDocs(invitationsQuery);
+            if (!invitationsSnapshot.empty) {
+                const invitationDoc = invitationsSnapshot.docs[0];
 
-            if (!invitationSnapshot.empty) {
-
-                const invitationDoc = invitationSnapshot.docs[0];
-
-                currentInvitationId = invitationDoc.id;
-                currentStreamId = streamDoc.id;
-
-                const invitation = invitationDoc.data();
-
-                invitationMessage.textContent =
-                    (invitation.hostName || "A host") +
-                    " invited you to join their live stream.";
-
-                invitationSection.style.display = "block";
-
-                coHostStatus.textContent = "";
-
-                return;
+                return {
+                    streamId: streamDoc.id,
+                    invitationId: invitationDoc.id,
+                    data: invitationDoc.data()
+                };
             }
-
         }
 
-        invitationMessage.textContent =
-            "You do not have any pending co-host invitations.";
+        return null;
 
     } catch (error) {
+        console.error("Invitation search failed:", error);
+        throw error;
+    }
+}
 
-        console.error("Invitation search error:", error);
+// =====================================================
+// AUTHENTICATION
+// =====================================================
 
-        invitationMessage.textContent =
-            "Could not check invitations. Please try again.";
-
+onAuthStateChanged(auth, async user => {
+    if (!user) {
+        window.location.href = "login.html";
+        return;
     }
 
-}
+    currentUser = user;
+
+    try {
+        showInvitation("Checking for live invitations...");
+
+        const invitation = await findPendingInvitation(user);
+
+        if (!invitation) {
+            showInvitation("You have no pending co-host invitations.");
+            if (invitationSection) invitationSection.hidden = false;
+            return;
+        }
+
+        currentStreamId = invitation.streamId;
+        currentInvitationId = invitation.invitationId;
+        currentInvitation = invitation.data;
+
+        showInvitation(
+            `${currentInvitation.hostName || "The host"} invited you to join a live stream.`
+        );
+
+        if (invitationSection) invitationSection.hidden = false;
+
+        listenForInvitationStatus();
+
+    } catch (error) {
+        console.error(error);
+        showInvitation("Could not check invitations. Please refresh.");
+    }
+});
 
 // =====================================================
 // ACCEPT INVITATION
 // =====================================================
 
-acceptInviteBtn.addEventListener("click", async () => {
-
-    if (!currentInvitationId || !currentStreamId) {
-        return;
-    }
-
-    acceptInviteBtn.disabled = true;
-
-    try {
-
-        await updateDoc(
-            doc(
-                db,
-                "liveStreams",
-                currentStreamId,
-                "coHostInvitations",
-                currentInvitationId
-            ),
-            {
-                status: "accepted",
-                respondedAt: serverTimestamp()
-            }
-        );
-
-        invitationSection.style.display = "none";
-        coHostLiveSection.style.display = "block";
-
-        coHostStatus.textContent =
-            "Invitation accepted. Preparing your camera and microphone...";
-
-        await startCoHostCamera();
-
-    } catch (error) {
-
-        console.error("Accept invitation error:", error);
-
-        coHostStatus.textContent =
-            "Could not accept invitation: " + error.message;
-
-    } finally {
-
-        acceptInviteBtn.disabled = false;
-
-    }
-
-});
-
-// =====================================================
-// DECLINE INVITATION
-// =====================================================
-
-declineInviteBtn.addEventListener("click", async () => {
-
-    if (!currentInvitationId || !currentStreamId) {
-        return;
-    }
-
-    declineInviteBtn.disabled = true;
-
-    try {
-
-        await updateDoc(
-            doc(
-                db,
-                "liveStreams",
-                currentStreamId,
-                "coHostInvitations",
-                currentInvitationId
-            ),
-            {
-                status: "declined",
-                respondedAt: serverTimestamp()
-            }
-        );
-
-        invitationSection.style.display = "none";
-
-        invitationMessage.textContent =
-            "You declined the invitation.";
-
-    } catch (error) {
-
-        console.error("Decline invitation error:", error);
-
-        alert("Could not decline invitation.");
-
-    } finally {
-
-        declineInviteBtn.disabled = false;
-
-    }
-
-});
-
-// =====================================================
-// START CO-HOST CAMERA
-// =====================================================
-async function startCoHostCamera() {
-
-    try {
-
-        coHostStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-
-        coHostLocalVideo.srcObject = coHostStream;
-
-        await coHostLocalVideo.play();
-
-        coHostStatus.textContent =
-            "Camera and microphone ready. Connecting to host...";
-
-        // Start the WebRTC connection
-        await connectToHost();
-
-    } catch (error) {
-
-        console.error("Co-host camera or connection error:", error);
-
-        coHostStatus.textContent =
-            "Could not start camera or connect to host. Check permissions and try again.";
-
-    }
-
+if (acceptInviteBtn) {
+    acceptInviteBtn.addEventListener("click", acceptInvitation);
 }
 
-// =====================================================
-// CONNECT CO-HOST TO HOST
-// =====================================================
-
-async function connectToHost() {
-
-    if (!coHostStream || !currentStreamId || !currentInvitationId) {
-        console.error("Missing co-host connection information.");
-        return;
-    }
-
-    console.log("Connecting co-host to host...");
-
-    coHostPeerConnection = new RTCPeerConnection(rtcConfig);
-
-    const pc = coHostPeerConnection;
-
-    const invitationRef = doc(
-        db,
-        "liveStreams",
-        currentStreamId,
-        "coHostInvitations",
-        currentInvitationId
-    );
-
-    const coHostCandidatesRef = collection(
-        db,
-        "liveStreams",
-        currentStreamId,
-        "coHostInvitations",
-        currentInvitationId,
-        "coHostCandidates"
-    );
-
-    const hostCandidatesRef = collection(
-        db,
-        "liveStreams",
-        currentStreamId,
-        "coHostInvitations",
-        currentInvitationId,
-        "hostCoHostCandidates"
-    );
-
-    const pendingHostCandidates = [];
-
-    // SEND CO-HOST CAMERA AND MICROPHONE TO HOST
-
-    coHostStream.getTracks().forEach(track => {
-        pc.addTrack(track, coHostStream);
-    });
-
-    // SEND ICE CANDIDATES TO FIRESTORE
-
-    pc.onicecandidate = async event => {
-
-        if (!event.candidate) return;
-
-        try {
-
-            await addDoc(
-                coHostCandidatesRef,
-                event.candidate.toJSON()
-            );
-
-        } catch (error) {
-
-            console.error("Co-host ICE error:", error);
-
-        }
-
-    };
-
-    // WATCH CONNECTION STATUS
-
-    pc.onconnectionstatechange = () => {
-
-        console.log(
-            "Co-host connection state:",
-            pc.connectionState
-        );
-
-        if (pc.connectionState === "connected") {
-
-            coHostStatus.textContent =
-                "Connected to the host successfully.";
-
-        } else if (
-            pc.connectionState === "disconnected" ||
-            pc.connectionState === "failed"
-        ) {
-
-            coHostStatus.textContent =
-                "Connection interrupted. Please check your internet.";
-
-        }
-
-    };
+async function acceptInvitation() {
+    if (busy || !currentInvitation || !currentInvitationId) return;
+    busy = true;
 
     try {
+        setStatus("Requesting camera and microphone...");
 
-        // CREATE CO-HOST OFFER
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            },
+            video: {
+                facingMode: "user",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        });
 
-        const offer = await pc.createOffer();
+        if (coHostLocalVideo) {
+            coHostLocalVideo.srcObject = localStream;
+            coHostLocalVideo.muted = true;
+            coHostLocalVideo.playsInline = true;
+            coHostLocalVideo.play().catch(() => {});
+        }
 
-        await pc.setLocalDescription(offer);
+        const invitationRef = getInvitationRef();
+
+        peerConnection = new RTCPeerConnection(rtcConfig);
+
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        peerConnection.onicecandidate = async event => {
+            if (!event.candidate) return;
+
+            try {
+                await addDoc(
+                    collection(invitationRef, "coHostCandidates"),
+                    event.candidate.toJSON()
+                );
+            } catch (error) {
+                console.error("Co-host ICE write failed:", error);
+            }
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            const state = peerConnection?.connectionState;
+
+            setStatus(`Connection: ${state}`);
+
+            if (state === "connected") {
+                if (invitationSection) invitationSection.hidden = true;
+                if (coHostLiveSection) coHostLiveSection.hidden = false;
+                setStatus("You are connected to the live stream.");
+            }
+
+            if (state === "failed") {
+                setStatus("Connection failed. Please leave and try again.");
+            }
+        };
+
+        const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: false
+        });
+
+        await peerConnection.setLocalDescription(offer);
 
         await updateDoc(invitationRef, {
-
-            coHostOffer: {
-                type: pc.localDescription.type,
-                sdp: pc.localDescription.sdp
-            },
-
-            coHostOfferCreatedAt: serverTimestamp()
-
+            status: "accepted",
+            coHostOffer: peerConnection.localDescription.toJSON(),
+            coHostId: currentUser.uid,
+            coHostUsername: currentUser.displayName || "",
+            acceptedAt: serverTimestamp()
         });
 
-        console.log("Co-host offer sent to host.");
+        listenForHostAnswer();
+        listenForHostCandidates();
 
-        // RECEIVE HOST ANSWER
+        if (invitationSection) invitationSection.hidden = true;
+        if (coHostLiveSection) coHostLiveSection.hidden = false;
 
-        unsubscribeCoHostAnswer = onSnapshot(
-            invitationRef,
-            async snapshot => {
-
-                if (!snapshot.exists()) return;
-
-                const data = snapshot.data();
-
-                if (
-                    data.coHostAnswer &&
-                    !pc.remoteDescription &&
-                    pc.signalingState !== "closed"
-                ) {
-
-                    try {
-
-                        await pc.setRemoteDescription(
-                            new RTCSessionDescription(data.coHostAnswer)
-                        );
-
-                        console.log("Host answer received.");
-
-                        // ADD ANY ICE CANDIDATES THAT ARRIVED EARLY
-
-                        for (const candidate of pendingHostCandidates) {
-
-                            await pc.addIceCandidate(
-                                new RTCIceCandidate(candidate)
-                            );
-
-                        }
-
-                        pendingHostCandidates.length = 0;
-
-                    } catch (error) {
-
-                        console.error("Host answer error:", error);
-
-                    }
-
-                }
-
-            }
-        );
-
-        // RECEIVE HOST ICE CANDIDATES
-
-        unsubscribeHostCandidates = onSnapshot(
-            hostCandidatesRef,
-            async snapshot => {
-
-                for (const change of snapshot.docChanges()) {
-
-                    if (change.type !== "added") continue;
-
-                    if (receivedHostCandidates.has(change.doc.id)) {
-                        continue;
-                    }
-
-                    receivedHostCandidates.add(change.doc.id);
-
-                    const candidate = change.doc.data();
-
-                    try {
-
-                        if (pc.remoteDescription) {
-
-                            await pc.addIceCandidate(
-                                new RTCIceCandidate(candidate)
-                            );
-
-                        } else {
-
-                            pendingHostCandidates.push(candidate);
-
-                        }
-
-                    } catch (error) {
-
-                        console.error(
-                            "Host ICE candidate error:",
-                            error
-                        );
-
-                    }
-
-                }
-
-            },
-            error => {
-                console.error("Host ICE listener error:", error);
-            }
-        );
-
-        coHostStatus.textContent =
-            "Connecting to the host...";
+        setStatus("Waiting for the host to connect...");
 
     } catch (error) {
-
-        console.error("Could not connect to host:", error);
-
-        coHostStatus.textContent =
-            "Could not connect to the host. Please try again.";
-
+        console.error("Accept invitation failed:", error);
+        setStatus("Could not join. Check camera permissions and try again.");
+        stopLocalMedia();
+        closeConnection();
+    } finally {
+        busy = false;
     }
-
 }
 
 // =====================================================
-// MICROPHONE
+// RECEIVE HOST ANSWER
 // =====================================================
 
-coHostMicBtn.addEventListener("click", () => {
+function listenForHostAnswer() {
+    if (unsubscribeInvitation) unsubscribeInvitation();
 
-    if (!coHostStream) return;
+    unsubscribeInvitation = onSnapshot(
+        getInvitationRef(),
+        async snapshot => {
+            if (!snapshot.exists() || !peerConnection) return;
 
-    microphoneEnabled = !microphoneEnabled;
+            const data = snapshot.data();
 
-    coHostStream.getAudioTracks().forEach(track => {
-        track.enabled = microphoneEnabled;
-    });
+            if (data.status === "left" || data.status === "ended") {
+                setStatus("The co-host session has ended.");
+                await cleanupLocalSession(false);
+                return;
+            }
 
-    coHostMicBtn.textContent = microphoneEnabled
-        ? "🎤 Microphone"
-        : "🔇 Microphone Off";
+            if (
+                data.coHostAnswer &&
+                peerConnection.signalingState === "have-local-offer" &&
+                !peerConnection.currentRemoteDescription
+            ) {
+                try {
+                    await peerConnection.setRemoteDescription(
+                        new RTCSessionDescription(data.coHostAnswer)
+                    );
 
-});
-
-// =====================================================
-// CAMERA
-// =====================================================
-
-coHostCameraBtn.addEventListener("click", () => {
-
-    if (!coHostStream) return;
-
-    cameraEnabled = !cameraEnabled;
-
-    coHostStream.getVideoTracks().forEach(track => {
-        track.enabled = cameraEnabled;
-    });
-
-    coHostCameraBtn.textContent = cameraEnabled
-        ? "📷 Camera"
-        : "🚫 Camera Off";
-
-});
-
+                    setStatus("Host answer received. Connecting...");
+                } catch (error) {
+                    console.error("Applying host answer failed:", error);
+                }
+            }
+        }
+    );
+}
 
 // =====================================================
-// LEAVE CO-HOST PAGE
+// RECEIVE HOST ICE CANDIDATES
 // =====================================================
 
-leaveCoHostBtn.addEventListener("click", async () => {
-
-    // Stop listening for Firestore updates
-
-    if (unsubscribeCoHostAnswer) {
-        unsubscribeCoHostAnswer();
-        unsubscribeCoHostAnswer = null;
-    }
-
+function listenForHostCandidates() {
     if (unsubscribeHostCandidates) {
         unsubscribeHostCandidates();
         unsubscribeHostCandidates = null;
     }
 
-    // Close WebRTC connection
+    const candidatesRef = collection(
+        getInvitationRef(),
+        "hostCoHostCandidates"
+    );
 
-    if (coHostPeerConnection) {
-        coHostPeerConnection.close();
-        coHostPeerConnection = null;
-    }
+    unsubscribeHostCandidates = onSnapshot(
+        candidatesRef,
+        async snapshot => {
+            if (!peerConnection || !peerConnection.remoteDescription) return;
 
-    // Stop camera and microphone
+            for (const change of snapshot.docChanges()) {
+                if (change.type !== "added") continue;
 
-    if (coHostStream) {
+                const candidateId = change.doc.id;
+                if (seenHostCandidates.has(candidateId)) continue;
 
-        coHostStream.getTracks().forEach(track => {
-            track.stop();
+                seenHostCandidates.add(candidateId);
+
+                try {
+                    await peerConnection.addIceCandidate(
+                        new RTCIceCandidate(change.doc.data())
+                    );
+                } catch (error) {
+                    console.warn("Host ICE candidate error:", error);
+                }
+            }
+        }
+    );
+}
+
+// =====================================================
+// DECLINE INVITATION
+// =====================================================
+
+if (declineInviteBtn) {
+    declineInviteBtn.addEventListener("click", declineInvitation);
+}
+
+async function declineInvitation() {
+    if (!currentInvitationId || !currentStreamId) return;
+
+    try {
+        await updateDoc(getInvitationRef(), {
+            status: "declined",
+            declinedAt: serverTimestamp()
         });
 
-        coHostStream = null;
+        showInvitation("Invitation declined.");
+
+    } catch (error) {
+        console.error("Decline failed:", error);
+        showInvitation("Could not decline the invitation.");
     }
+}
 
-    // Clear local video
+// =====================================================
+// MICROPHONE CONTROL
+// =====================================================
 
-    coHostLocalVideo.srcObject = null;
+if (coHostMicBtn) {
+    coHostMicBtn.addEventListener("click", () => {
+        micEnabled = !micEnabled;
 
-    // Update invitation status
-
-    if (currentInvitationId && currentStreamId) {
-
-        try {
-
-            await updateDoc(
-                doc(
-                    db,
-                    "liveStreams",
-                    currentStreamId,
-                    "coHostInvitations",
-                    currentInvitationId
-                ),
-                {
-                    status: "left",
-                    leftAt: serverTimestamp()
-                }
-            );
-
-        } catch (error) {
-
-            console.error("Could not update co-host status:", error);
-
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = micEnabled;
+            });
         }
 
+        coHostMicBtn.textContent = micEnabled ? "Mute" : "Unmute";
+    });
+}
+
+// =====================================================
+// CAMERA CONTROL
+// =====================================================
+
+if (coHostCameraBtn) {
+    coHostCameraBtn.addEventListener("click", () => {
+        cameraEnabled = !cameraEnabled;
+
+        if (localStream) {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = cameraEnabled;
+            });
+        }
+
+        coHostCameraBtn.textContent = cameraEnabled
+            ? "Turn camera off"
+            : "Turn camera on";
+    });
+}
+
+// =====================================================
+// LISTEN FOR INVITATION STATUS
+// =====================================================
+
+function listenForInvitationStatus() {
+    if (unsubscribeInvitation) unsubscribeInvitation();
+
+    unsubscribeInvitation = onSnapshot(
+        getInvitationRef(),
+        async snapshot => {
+            if (!snapshot.exists()) return;
+
+            const data = snapshot.data();
+
+            if (
+                data.status === "declined" ||
+                data.status === "ended" ||
+                data.status === "left"
+            ) {
+                setStatus("This invitation is no longer active.");
+                await cleanupLocalSession(false);
+            }
+        }
+    );
+}
+
+// =====================================================
+// LEAVE CO-HOST SESSION
+// =====================================================
+
+if (leaveCoHostBtn) {
+    leaveCoHostBtn.addEventListener("click", leaveCoHostSession);
+}
+
+async function leaveCoHostSession() {
+    if (leaving) return;
+    leaving = true;
+
+    try {
+        if (currentInvitationId && currentStreamId) {
+            await updateDoc(getInvitationRef(), {
+                status: "left",
+                leftAt: serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error("Updating co-host leave status failed:", error);
     }
 
-    coHostLiveSection.style.display = "none";
+    await cleanupLocalSession(false);
+    setStatus("You left the live stream.");
 
-    invitationSection.style.display = "block";
+    if (invitationSection) invitationSection.hidden = false;
+    if (coHostLiveSection) coHostLiveSection.hidden = true;
 
-    coHostStatus.textContent =
-        "You left the co-host session.";
+    leaving = false;
+}
 
+async function cleanupLocalSession(updateStatus = false) {
+    stopInvitationListeners();
+    closeConnection();
+    stopLocalMedia();
+
+    if (updateStatus && currentInvitationId && currentStreamId) {
+        try {
+            await updateDoc(getInvitationRef(), {
+                status: "left",
+                leftAt: serverTimestamp()
+            });
+        } catch (_) {}
+    }
+
+    if (coHostLiveSection) coHostLiveSection.hidden = true;
+}
+
+// =====================================================
+// PAGE CLEANUP
+// =====================================================
+
+window.addEventListener("pagehide", () => {
+    stopInvitationListeners();
+    closeConnection();
+    stopLocalMedia();
+});
+
+window.addEventListener("beforeunload", () => {
+    stopInvitationListeners();
+    closeConnection();
+    stopLocalMedia();
 });
