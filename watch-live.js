@@ -1,6 +1,8 @@
 
 import { auth, db } from "./firebase.js";
 
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
 import {
     doc,
     getDoc,
@@ -16,402 +18,192 @@ import {
     limit,
     getDocs,
     increment,
-    serverTimestamp,
-    writeBatch
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-console.log("AlQlic Watch Live JS loaded");
-
-
 // =====================================================
-// GET STREAM ID
+// ALQLIC LIVE — VIEWER
+// Host video + co-host video + chat + likes + gifts
 // =====================================================
 
 const params = new URLSearchParams(window.location.search);
 const streamId = params.get("streamId");
 
+const $ = id => document.getElementById(id);
 
-// =====================================================
-// PAGE ELEMENTS
-// =====================================================
+const remoteVideo = $("remoteVideo");
+const coHostVideo = $("coHostVideo");
 
-const remoteVideo = document.getElementById("remoteVideo");
-const coHostVideo = document.getElementById("coHostVideo");
+const titleElement = $("title");
+const streamTitleElement = $("streamTitle");
+const viewerCountElement = $("viewerCount");
+const hostInfo = $("hostInfo");
 
-const title = document.getElementById("title");
-const streamTitle = document.getElementById("streamTitle");
+const chatMessages = $("chatMessages");
+const chatInput = $("chatInput");
+const sendChatBtn = $("sendChatBtn");
 
-const viewerCount = document.getElementById("viewerCount");
-const hostInfo = document.getElementById("hostInfo");
+const likeBtn = $("likeBtn");
+const likeCountElement = $("likeCount");
 
-const chatMessages = document.getElementById("chatMessages");
-const chatInput = document.getElementById("chatInput");
-const sendChatBtn = document.getElementById("sendChatBtn");
-
-const likeBtn = document.getElementById("likeBtn");
-const likeCount = document.getElementById("likeCount");
-
-const liveCommentsOverlay =
-    document.getElementById("liveCommentsOverlay");
-
-const liveLikesOverlay =
-    document.getElementById("liveLikesOverlay");
-
-const liveGiftsOverlay =
-    document.getElementById("liveGiftsOverlay");
-
-const giftBtn = document.getElementById("giftBtn");
-const shareBtn = document.getElementById("shareBtn");
-const backBtn = document.getElementById("backBtn");
-
-
-// =====================================================
-// VARIABLES
-// =====================================================
-
-let peerConnection = null;
-
-
-// CO-HOST WEBRTC CONNECTION
-let coHostPeerConnection = null;
-let coHostMediaStream = new MediaStream();
-
-let coHostInvitationId = null;
-let receivedCoHostCandidates = new Set();
-
-let viewerId = null;
-let viewerSessionId = null;
-let currentUser = null;
-let creatorId = null;
-
-let viewerAnswerRef = null;
-let viewerOfferRef = null;
-
-let streamEnded = false;
-let cleanupStarted = false;
-
-let unsubscribeAnswer = null;
-let unsubscribeHostCandidates = null;
-
-let unsubscribeCoHostOffer = null;
-let unsubscribeCoHostCandidates = null;
-let unsubscribeCoHostAnswer = null;
-
-let unsubscribeChat = null;
-let unsubscribeStreamStats = null;
-let unsubscribeLikeEvents = null;
-
-
-// =====================================================
-// WEBRTC CONFIGURATION
-// =====================================================
+const giftBtn = $("giftBtn");
+const shareBtn = $("shareBtn");
+const backBtn = $("backBtn");
 
 const rtcConfig = {
     iceServers: [
-        {
-            urls: "stun:stun.l.google.com:19302"
-        },
-        {
-            urls: "stun:stun1.l.google.com:19302"
-        }
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
     ]
 };
 
+let currentUser = null;
+let streamData = null;
 
-// =====================================================
-// CHECK STREAM ID
-// =====================================================
+let viewerSessionId = null;
 
-if (!streamId) {
+let hostPeerConnection = null;
+let coHostPeerConnection = null;
 
-    alert("Live stream not found.");
+let hostAnswerListener = null;
+let hostCandidatesListener = null;
 
-    window.location.href = "stream.html";
+let coHostAnswerListener = null;
+let coHostCandidatesListener = null;
+let coHostInvitationListener = null;
 
+let chatListener = null;
+let streamListener = null;
+let viewerCountListener = null;
+
+let currentCoHostInvitationId = null;
+let currentCoHostViewerRef = null;
+
+let isLeaving = false;
+
+function setText(element, value) {
+    if (element) element.textContent = value;
 }
 
+function closePeerConnection(pc) {
+    if (!pc) return;
 
-// =====================================================
-// BACK BUTTON
-// =====================================================
-
-if (backBtn) {
-
-    backBtn.addEventListener("click", () => {
-
-        cleanupViewer();
-
-        window.history.back();
-
-    });
-
+    try {
+        pc.ontrack = null;
+        pc.onicecandidate = null;
+        pc.onconnectionstatechange = null;
+        pc.close();
+    } catch (_) {}
 }
 
+function makeSessionId(user) {
+    return `${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
 
 // =====================================================
-// AUTHENTICATION
+// AUTHENTICATION AND STREAM LOAD
 // =====================================================
 
-auth.onAuthStateChanged(async user => {
-
+onAuthStateChanged(auth, async user => {
     if (!user) {
-
-        alert("Please log in to watch this live stream.");
-
         window.location.href = "login.html";
-
         return;
+    }
 
+    if (!streamId) {
+        alert("Live stream ID is missing.");
+        window.location.href = "index.html";
+        return;
     }
 
     currentUser = user;
-    viewerId = user.uid;
-
-    // Generate a fresh ID for every viewing session.
-
-    viewerSessionId =
-        `${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    viewerSessionId = makeSessionId(user);
 
     try {
+        await loadLiveStream();
+        await createHostConnection();
+        listenForStreamUpdates();
+        listenForViewerCount();
+        listenForChatMessages();
+        listenForCoHostInvitation();
 
-        await loadStream();
-
-        if (streamEnded) {
-            return;
-        }
-
-      await joinLive();
-
-listenForCoHost();
-
-listenForChat();
-
-listenForStreamStats();
-
-listenForLikeEvents();
     } catch (error) {
-
-        console.error("Watch Live startup error:", error);
-
+        console.error("Unable to join live stream:", error);
         alert("Unable to join this live stream. Please try again.");
-
+        await leaveLiveStream();
     }
-
 });
 
+async function loadLiveStream() {
+    const streamRef = doc(db, "liveStreams", streamId);
+    const snapshot = await getDoc(streamRef);
 
-// =====================================================
-// LOAD STREAM
-// =====================================================
-
-async function loadStream() {
-
-    const streamRef = doc(
-        db,
-        "liveStreams",
-        streamId
-    );
-
-    const streamSnap = await getDoc(streamRef);
-
-    if (!streamSnap.exists()) {
-
-        alert("This live stream does not exist.");
-
-        streamEnded = true;
-
-        window.location.href = "stream.html";
-
-        return;
-
+    if (!snapshot.exists()) {
+        throw new Error("Live stream not found.");
     }
 
-    const stream = streamSnap.data();
+    streamData = snapshot.data();
 
-    creatorId = stream.hostId || null;
-
-    if (stream.status !== "live") {
-
-        alert("This live stream has ended.");
-
-        streamEnded = true;
-
-        window.location.href = "stream.html";
-
-        return;
-
+    if (streamData.status !== "live") {
+        throw new Error("This live stream has ended.");
     }
 
-    const streamName = stream.title || "AlQlic Live";
+    const title = streamData.title || "Live stream";
 
-    if (title) {
-        title.textContent = streamName;
-    }
-
-    if (streamTitle) {
-        streamTitle.textContent = streamName;
-    }
-
-    if (viewerCount) {
-        viewerCount.textContent = stream.viewerCount || 0;
-    }
+    setText(titleElement, title);
+    setText(streamTitleElement, title);
 
     if (hostInfo) {
-        hostInfo.textContent = stream.hostName || "AlQlic User";
+        hostInfo.textContent =
+            streamData.hostName ||
+            streamData.hostUsername ||
+            "Live host";
     }
 
-    if (likeCount) {
-        likeCount.textContent = stream.likes || 0;
-    }
+    setText(likeCountElement, streamData.likes || 0);
 
-}
-
-
-// =====================================================
-// LIVE STREAM STATISTICS
-// =====================================================
-
-function listenForStreamStats() {
-
-    const streamRef = doc(
-        db,
-        "liveStreams",
-        streamId
-    );
-
-    unsubscribeStreamStats = onSnapshot(
-
-        streamRef,
-
-        snapshot => {
-
-            if (!snapshot.exists()) {
-                return;
-            }
-
-            const stream = snapshot.data();
-
-            if (viewerCount) {
-                viewerCount.textContent = stream.viewerCount || 0;
-            }
-
-            if (likeCount) {
-                likeCount.textContent = stream.likes || 0;
-            }
-
-            if (stream.status !== "live" && !streamEnded) {
-
-                streamEnded = true;
-
-                alert("This live stream has ended.");
-
-                cleanupViewer();
-
-                window.location.href = "stream.html";
-
-            }
-
+    await setDoc(
+        doc(db, "liveStreams", streamId, "viewers", viewerSessionId),
+        {
+            userId: currentUser.uid,
+            username: currentUser.displayName || "",
+            status: "connecting",
+            joinedAt: serverTimestamp()
         },
-
-        error => {
-
-            console.error("Live statistics error:", error);
-
-        }
-
+        { merge: true }
     );
-
 }
 
-
 // =====================================================
-// JOIN LIVE
+// VIEWER → HOST WEBRTC CONNECTION
 // =====================================================
 
-async function joinLive() {
+async function createHostConnection() {
+    hostPeerConnection = new RTCPeerConnection(rtcConfig);
 
-    if (streamEnded || !viewerId) {
-        return;
-    }
+    hostPeerConnection.ontrack = event => {
+        if (!remoteVideo) return;
 
-    console.log("Joining AlQlic live stream...");
-
-    peerConnection = new RTCPeerConnection(rtcConfig);
-
-    let pendingHostCandidates = [];
-    let remoteDescriptionReady = false;
-    let answerApplied = false;
-
-
-    // =================================================
-    // RECEIVE HOST VIDEO AND AUDIO
-    // =================================================
-
-    const remoteMediaStream = new MediaStream();
-
-    peerConnection.ontrack = async event => {
-
-        console.log(
-            "📡 Remote media received:",
-            event.track.kind,
-            event.track.id
-        );
-
-        // Add each incoming track only once
-
-        if (
-            !remoteMediaStream.getTracks().some(
-                track => track.id === event.track.id
-            )
-        ) {
-            remoteMediaStream.addTrack(event.track);
+        if (!remoteVideo.srcObject) {
+            remoteVideo.srcObject = new MediaStream();
         }
 
-        if (!remoteVideo) {
-            return;
+        const stream = remoteVideo.srcObject;
+
+        if (!stream.getTracks().some(track => track.id === event.track.id)) {
+            stream.addTrack(event.track);
         }
 
-        remoteVideo.srcObject = remoteMediaStream;
-
-        // Allow viewers to hear incoming audio
-
-        remoteVideo.muted = false;
-        remoteVideo.volume = 1;
-        remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
-
-        try {
-
-            await remoteVideo.play();
-
-            console.log("🔊 Live audio/video playback started.");
-
-        } catch (error) {
-
-            console.warn(
-                "Viewer playback requires user interaction:",
-                error
-            );
-
-        }
-
+        remoteVideo.autoplay = true;
+        remoteVideo.play().catch(() => {});
     };
 
-
-    // =================================================
-    // SEND VIEWER ICE CANDIDATES
-    // =================================================
-
-    peerConnection.onicecandidate = async event => {
-
-        if (!event.candidate) {
-            return;
-        }
+    hostPeerConnection.onicecandidate = async event => {
+        if (!event.candidate) return;
 
         try {
-
             await addDoc(
-
                 collection(
                     db,
                     "liveStreams",
@@ -420,63 +212,45 @@ async function joinLive() {
                     viewerSessionId,
                     "viewerCandidates"
                 ),
-
                 event.candidate.toJSON()
-
             );
-
         } catch (error) {
-
-            console.error("Viewer ICE error:", error);
-
+            console.error("Viewer ICE write failed:", error);
         }
-
     };
 
+    hostPeerConnection.onconnectionstatechange = async () => {
+        const state = hostPeerConnection?.connectionState;
 
-    // =================================================
-    // CONNECTION STATE
-    // =================================================
+        console.log("Host connection state:", state);
 
-    peerConnection.onconnectionstatechange = () => {
-
-        if (!peerConnection) {
-            return;
+        if (state === "connected") {
+            try {
+                await updateDoc(
+                    doc(db, "liveStreams", streamId, "viewers", viewerSessionId),
+                    {
+                        status: "connected",
+                        connectedAt: serverTimestamp()
+                    }
+                );
+            } catch (error) {
+                console.warn("Viewer connected status update failed:", error);
+            }
         }
-
-        const state = peerConnection.connectionState;
-
-        console.log("WebRTC connection:", state);
 
         if (state === "failed") {
-
-            console.error("WebRTC connection failed.");
-
+            console.warn("Host video connection failed.");
         }
-
     };
 
-
-    // =================================================
-    // CREATE VIEWER OFFER
-    // =================================================
-
-    const offer = await peerConnection.createOffer({
-
+    const offer = await hostPeerConnection.createOffer({
         offerToReceiveAudio: true,
-
         offerToReceiveVideo: true
-
     });
 
-    await peerConnection.setLocalDescription(offer);
+    await hostPeerConnection.setLocalDescription(offer);
 
-
-    // =================================================
-    // SAVE VIEWER OFFER
-    // =================================================
-
-    viewerOfferRef = doc(
+    const offerRef = doc(
         db,
         "liveStreams",
         streamId,
@@ -484,28 +258,22 @@ async function joinLive() {
         viewerSessionId
     );
 
-    await setDoc(viewerOfferRef, {
-
-        type: offer.type,
-
-        sdp: offer.sdp,
-
-        viewerId: viewerId,
-
-        sessionId: viewerSessionId,
-
+    await setDoc(offerRef, {
+        offer: hostPeerConnection.localDescription.toJSON(),
+        viewerId: currentUser.uid,
         createdAt: serverTimestamp()
-
     });
 
-    console.log("Viewer offer sent");
+    listenForHostAnswer();
+    listenForHostCandidates();
+}
 
+// =====================================================
+// RECEIVE HOST ANSWER
+// =====================================================
 
-    // =================================================
-    // VIEWER ANSWER DOCUMENT
-    // =================================================
-
-    viewerAnswerRef = doc(
+function listenForHostAnswer() {
+    const viewerRef = doc(
         db,
         "liveStreams",
         streamId,
@@ -513,12 +281,34 @@ async function joinLive() {
         viewerSessionId
     );
 
+    hostAnswerListener = onSnapshot(viewerRef, async snapshot => {
+        if (!snapshot.exists() || !hostPeerConnection) return;
 
-    // =================================================
-    // LISTEN FOR HOST ICE CANDIDATES
-    // =================================================
+        const data = snapshot.data();
 
-    const hostCandidatesRef = collection(
+        if (
+            data.answer &&
+            !hostPeerConnection.currentRemoteDescription
+        ) {
+            try {
+                await hostPeerConnection.setRemoteDescription(
+                    new RTCSessionDescription(data.answer)
+                );
+
+                console.log("Host answer applied.");
+            } catch (error) {
+                console.error("Applying host answer failed:", error);
+            }
+        }
+    });
+}
+
+// =====================================================
+// RECEIVE HOST ICE CANDIDATES
+// =====================================================
+
+function listenForHostCandidates() {
+    const candidatesRef = collection(
         db,
         "liveStreams",
         streamId,
@@ -527,153 +317,28 @@ async function joinLive() {
         "hostCandidates"
     );
 
-    unsubscribeHostCandidates = onSnapshot(
+    hostCandidatesListener = onSnapshot(candidatesRef, async snapshot => {
+        if (!hostPeerConnection?.remoteDescription) return;
 
-        hostCandidatesRef,
-
-        async snapshot => {
-
-            for (const change of snapshot.docChanges()) {
-
-                if (change.type !== "added") {
-                    continue;
-                }
-
-                const candidateData = change.doc.data();
-
-                if (!candidateData || !peerConnection) {
-                    continue;
-                }
-
-                try {
-
-                    if (!remoteDescriptionReady) {
-
-                        pendingHostCandidates.push(candidateData);
-
-                        continue;
-
-                    }
-
-                    await peerConnection.addIceCandidate(
-                        new RTCIceCandidate(candidateData)
-                    );
-
-                    console.log("Host ICE candidate added");
-
-                } catch (error) {
-
-                    console.error("Host ICE error:", error);
-
-                }
-
-            }
-
-        },
-
-        error => {
-
-            console.error("Host ICE listener error:", error);
-
-        }
-
-    );
-
-
-    // =================================================
-    // LISTEN FOR HOST ANSWER
-    // =================================================
-
-    unsubscribeAnswer = onSnapshot(
-
-        viewerAnswerRef,
-
-        async snapshot => {
-
-            if (
-                !snapshot.exists() ||
-                !peerConnection ||
-                answerApplied
-            ) {
-                return;
-            }
-
-            const data = snapshot.data();
-
-            if (!data.answer) {
-                return;
-            }
+        for (const change of snapshot.docChanges()) {
+            if (change.type !== "added") continue;
 
             try {
-
-                answerApplied = true;
-
-                await peerConnection.setRemoteDescription(
-
-                    new RTCSessionDescription(data.answer)
-
+                await hostPeerConnection.addIceCandidate(
+                    new RTCIceCandidate(change.doc.data())
                 );
-
-                remoteDescriptionReady = true;
-
-                console.log("Host answer received");
-
-
-                // PROCESS HOST ICE CANDIDATES
-                // THAT ARRIVED BEFORE THE ANSWER
-
-                for (const candidateData of pendingHostCandidates) {
-
-                    try {
-
-                        await peerConnection.addIceCandidate(
-
-                            new RTCIceCandidate(candidateData)
-
-                        );
-
-                    } catch (error) {
-
-                        console.error(
-                            "Pending host ICE error:",
-                            error
-                        );
-
-                    }
-
-                }
-
-                pendingHostCandidates = [];
-
-                console.log("Host ICE candidates processed");
-
             } catch (error) {
-
-                answerApplied = false;
-
-                console.error("Remote description error:", error);
-
+                console.warn("Host ICE candidate error:", error);
             }
-
-        },
-
-        error => {
-
-            console.error("Host answer listener error:", error);
-
         }
-
-    );
-
+    });
 }
 
-
 // =====================================================
-// LISTEN FOR ACCEPTED CO-HOST
+// FIND ACCEPTED CO-HOST AND CONNECT TO CO-HOST MEDIA
 // =====================================================
 
-function listenForCoHost() {
-
+function listenForCoHostInvitation() {
     const invitationsRef = collection(
         db,
         "liveStreams",
@@ -681,920 +346,474 @@ function listenForCoHost() {
         "coHostInvitations"
     );
 
-    const acceptedQuery = query(
-        invitationsRef,
-        where("status", "==", "accepted"),
-        limit(1)
-    );
-
-    unsubscribeCoHostOffer = onSnapshot(
-        acceptedQuery,
+    coHostInvitationListener = onSnapshot(
+        query(
+            invitationsRef,
+            where("status", "==", "accepted"),
+            limit(1)
+        ),
         snapshot => {
-
             if (snapshot.empty) {
+                if (coHostPeerConnection) {
+                    cleanupCoHostViewerConnection();
+                }
                 return;
             }
 
             const invitationDoc = snapshot.docs[0];
 
-            if (coHostInvitationId === invitationDoc.id) {
-                return;
+            if (currentCoHostInvitationId === invitationDoc.id) return;
+
+            if (coHostPeerConnection) {
+                cleanupCoHostViewerConnection();
             }
 
-            coHostInvitationId = invitationDoc.id;
+            currentCoHostInvitationId = invitationDoc.id;
 
-            console.log(
-                "Accepted co-host found:",
-                coHostInvitationId
-            );
-
-            startCoHostViewerConnection();
-
-        },
-        error => {
-            console.error(
-                "Co-host invitation listener error:",
-                error
-            );
+            createCoHostViewerConnection(
+                invitationDoc.id
+            ).catch(error => {
+                console.error("Co-host viewer connection failed:", error);
+            });
         }
     );
 }
 
-
 // =====================================================
-// START CO-HOST VIEWER CONNECTION
+// VIEWER → HOST RELAY FOR CO-HOST MEDIA
 // =====================================================
 
-async function startCoHostViewerConnection() {
+async function createCoHostViewerConnection(invitationId) {
+    const invitationRef = doc(
+        db,
+        "liveStreams",
+        streamId,
+        "coHostInvitations",
+        invitationId
+    );
 
-    if (
-        !coHostInvitationId ||
-        !viewerSessionId ||
-        streamEnded
-    ) {
-        return;
-    }
+    currentCoHostViewerRef = doc(
+        invitationRef,
+        "viewers",
+        viewerSessionId
+    );
 
-    if (coHostPeerConnection) {
-        coHostPeerConnection.close();
-        coHostPeerConnection = null;
-    }
+    coHostPeerConnection = new RTCPeerConnection(rtcConfig);
 
-    receivedCoHostCandidates.clear();
+    coHostPeerConnection.ontrack = event => {
+        if (!coHostVideo) return;
 
-    const coHostViewerRef = doc(
-    db,
-    "liveStreams",
-    streamId,
-    "coHostInvitations",
-    coHostInvitationId,
-    "viewers",
-    viewerSessionId
-);
-
-const coHostViewerCandidatesRef = collection(
-    coHostViewerRef,
-    "viewerCandidates"
-);
-
-const coHostHostCandidatesRef = collection(
-    coHostViewerRef,
-    "hostCandidates"
-);
-
-    const pc = new RTCPeerConnection(rtcConfig);
-
-
-    pc.onicecandidate = async event => {
-
-    if (!event.candidate) {
-        return;
-    }
-
-    try {
-
-        await addDoc(
-            coHostViewerCandidatesRef,
-            event.candidate.toJSON()
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Viewer co-host ICE error:",
-            error
-        );
-
-    }
-
-};
-    
-    coHostPeerConnection = pc;
-
-    coHostMediaStream = new MediaStream();
-
-    pc.ontrack = async event => {
-
-        if (
-            !coHostMediaStream.getTracks().some(
-                track => track.id === event.track.id
-            )
-        ) {
-            coHostMediaStream.addTrack(event.track);
+        if (!coHostVideo.srcObject) {
+            coHostVideo.srcObject = new MediaStream();
         }
 
-        if (!coHostVideo) {
-            return;
+        const stream = coHostVideo.srcObject;
+
+        if (!stream.getTracks().some(track => track.id === event.track.id)) {
+            stream.addTrack(event.track);
         }
 
-        coHostVideo.srcObject = coHostMediaStream;
-        coHostVideo.muted = false;
-        coHostVideo.volume = 1;
-        coHostVideo.autoplay = true;
         coHostVideo.playsInline = true;
+        coHostVideo.autoplay = true;
+        coHostVideo.play().catch(() => {});
+    };
+
+    coHostPeerConnection.onicecandidate = async event => {
+        if (!event.candidate || !currentCoHostViewerRef) return;
 
         try {
-            await coHostVideo.play();
+            await addDoc(
+                collection(currentCoHostViewerRef, "viewerCandidates"),
+                event.candidate.toJSON()
+            );
         } catch (error) {
-            console.warn("Co-host playback needs user interaction:", error);
+            console.error("Co-host viewer ICE write failed:", error);
         }
     };
 
+    coHostPeerConnection.onconnectionstatechange = () => {
+        console.log(
+            "Co-host viewer connection:",
+            coHostPeerConnection?.connectionState
+        );
+    };
 
-    // LISTEN FOR HOST CO-HOST ICE CANDIDATES
-// LISTEN FOR HOST CO-HOST ICE CANDIDATES
-
-let pendingCoHostHostCandidates = [];
-
-unsubscribeCoHostCandidates = onSnapshot(
-    coHostHostCandidatesRef,
-
-    async snapshot => {
-
-        for (const change of snapshot.docChanges()) {
-
-            if (change.type !== "added") {
-                continue;
-            }
-
-            if (receivedCoHostCandidates.has(change.doc.id)) {
-                continue;
-            }
-
-            receivedCoHostCandidates.add(change.doc.id);
-
-            const candidate = change.doc.data();
-
-            try {
-
-                if (pc.remoteDescription) {
-
-                    await pc.addIceCandidate(
-                        new RTCIceCandidate(candidate)
-                    );
-
-                } else {
-
-                    pendingCoHostHostCandidates.push(candidate);
-
-                }
-
-            } catch (error) {
-
-                console.error(
-                    "Host co-host ICE error:",
-                    error
-                );
-
-            }
-
-        }
-
-    },
-
-    error => {
-        console.error("Host co-host ICE listener error:", error);
-    }
-);
-    // CREATE AN OFFER FOR THE CO-HOST MEDIA
-
-try {
-
-    const offer = await pc.createOffer({
+    const offer = await coHostPeerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
     });
 
-    await pc.setLocalDescription(offer);
+    await coHostPeerConnection.setLocalDescription(offer);
 
-    // SEND THE OFFER TO THE HOST
-
-    await setDoc(coHostViewerRef, {
-        offer: {
-            type: pc.localDescription.type,
-            sdp: pc.localDescription.sdp
-        },
-        viewerId: viewerId,
-        viewerSessionId: viewerSessionId,
+    await setDoc(currentCoHostViewerRef, {
+        viewerId: currentUser.uid,
+        offer: coHostPeerConnection.localDescription.toJSON(),
+        status: "connecting",
         createdAt: serverTimestamp()
-    });
+    }, { merge: true });
 
-    console.log("Co-host viewer offer sent to host.");
+    listenForCoHostAnswer();
+    listenForCoHostCandidates();
+}
 
-    // LISTEN FOR THE HOST'S ANSWER
+// =====================================================
+// RECEIVE CO-HOST RELAY ANSWER
+// =====================================================
 
-    let coHostAnswerApplied = false;
+function listenForCoHostAnswer() {
+    if (!currentCoHostViewerRef) return;
 
-    unsubscribeCoHostAnswer = onSnapshot(
-        coHostViewerRef,
+    coHostAnswerListener = onSnapshot(
+        currentCoHostViewerRef,
         async snapshot => {
+            if (!snapshot.exists() || !coHostPeerConnection) return;
+
+            const data = snapshot.data();
 
             if (
-                !snapshot.exists() ||
-                !snapshot.data().answer ||
-                coHostAnswerApplied ||
-                !coHostPeerConnection
+                data.answer &&
+                !coHostPeerConnection.currentRemoteDescription
             ) {
-                return;
+                try {
+                    await coHostPeerConnection.setRemoteDescription(
+                        new RTCSessionDescription(data.answer)
+                    );
+
+                    console.log("Co-host relay answer applied.");
+                } catch (error) {
+                    console.error("Applying co-host answer failed:", error);
+                }
             }
-
-            try {
-
-                const answer = snapshot.data().answer;
-
-                await pc.setRemoteDescription(
-                    new RTCSessionDescription(answer)
-                );
-
-                // PROCESS HOST ICE CANDIDATES THAT ARRIVED EARLY
-
-for (const candidateData of pendingCoHostHostCandidates) {
-    try {
-        await pc.addIceCandidate(
-            new RTCIceCandidate(candidateData)
-        );
-
-        console.log("Pending co-host ICE candidate added.");
-
-    } catch (error) {
-        console.error(
-            "Pending co-host ICE error:",
-            error
-        );
-    }
-}
-
-pendingCoHostHostCandidates = [];
-                
-                coHostAnswerApplied = true;
-
-                console.log("Host answer received for co-host media.");
-
-            } catch (error) {
-
-                console.error(
-                    "Co-host remote answer error:",
-                    error
-                );
-
-            }
-
-        },
-        error => {
-            console.error("Co-host answer listener error:", error);
         }
     );
+}
 
-} catch (error) {
+// =====================================================
+// RECEIVE CO-HOST RELAY ICE CANDIDATES
+// =====================================================
 
-    console.error(
-        "Unable to create co-host viewer offer:",
-        error
+function listenForCoHostCandidates() {
+    if (!currentCoHostViewerRef) return;
+
+    const candidatesRef = collection(
+        currentCoHostViewerRef,
+        "hostCandidates"
     );
 
-}
+    coHostCandidatesListener = onSnapshot(
+        candidatesRef,
+        async snapshot => {
+            if (!coHostPeerConnection?.remoteDescription) return;
+
+            for (const change of snapshot.docChanges()) {
+                if (change.type !== "added") continue;
+
+                try {
+                    await coHostPeerConnection.addIceCandidate(
+                        new RTCIceCandidate(change.doc.data())
+                    );
+                } catch (error) {
+                    console.warn("Co-host relay ICE error:", error);
+                }
+            }
+        }
+    );
 }
 
+// =====================================================
+// STREAM UPDATES
+// =====================================================
+
+function listenForStreamUpdates() {
+    streamListener = onSnapshot(
+        doc(db, "liveStreams", streamId),
+        snapshot => {
+            if (!snapshot.exists()) return;
+
+            const data = snapshot.data();
+
+            setText(likeCountElement, data.likes || 0);
+
+            if (data.status === "ended") {
+                alert("This live stream has ended.");
+                leaveLiveStream();
+            }
+        }
+    );
+}
+
+// =====================================================
+// VIEWER COUNT
+// =====================================================
+
+function listenForViewerCount() {
+    const viewersRef = collection(
+        db,
+        "liveStreams",
+        streamId,
+        "viewers"
+    );
+
+    viewerCountListener = onSnapshot(viewersRef, snapshot => {
+        const count = snapshot.docs.filter(item => {
+            const data = item.data();
+            return (
+                data.status === "connected" ||
+                data.status === "connecting"
+            );
+        }).length;
+
+        setText(viewerCountElement, count);
+    });
+}
 
 // =====================================================
 // LIVE CHAT
 // =====================================================
 
-function listenForChat() {
-
-    const commentsRef = collection(
+function listenForChatMessages() {
+    const messagesRef = collection(
         db,
         "liveStreams",
         streamId,
         "messages"
     );
 
-    unsubscribeChat = onSnapshot(
-
-        commentsRef,
-
+    chatListener = onSnapshot(
+        query(messagesRef, orderBy("createdAt", "asc"), limit(100)),
         snapshot => {
-
-            if (!chatMessages) {
-                return;
-            }
-
-            const messages = [];
-
-            snapshot.forEach(commentDoc => {
-
-                messages.push(commentDoc.data());
-
-            });
-
-            messages.sort((a, b) => {
-
-                const timeA = a.createdAt?.toMillis?.() || 0;
-
-                const timeB = b.createdAt?.toMillis?.() || 0;
-
-                return timeA - timeB;
-
-            });
-
-
-            // DISPLAY CHAT PANEL
+            if (!chatMessages) return;
 
             chatMessages.innerHTML = "";
 
-            messages.forEach(comment => {
+            snapshot.forEach(messageDoc => {
+                const data = messageDoc.data();
 
-                const message = document.createElement("div");
+                const item = document.createElement("div");
+                item.className = "live-chat-message";
 
-                message.className = "chat-message";
+                const name = document.createElement("strong");
+                name.textContent = `${data.username || "User"}: `;
 
-                const username = escapeHTML(
-                    comment.username || "User"
-                );
+                const message = document.createElement("span");
+                message.textContent = data.text || "";
 
-                const messageText = escapeHTML(
-                    comment.text || ""
-                );
-
-                message.innerHTML = `
-                    <strong>${username}</strong>
-                    <span>${messageText}</span>
-                `;
-
-                chatMessages.appendChild(message);
-
+                item.append(name, message);
+                chatMessages.appendChild(item);
             });
 
             chatMessages.scrollTop = chatMessages.scrollHeight;
-
-
-            // DISPLAY COMMENTS OVER THE VIDEO
-
-            if (liveCommentsOverlay) {
-
-                liveCommentsOverlay.innerHTML = "";
-
-                const recentMessages = messages.slice(-4);
-
-                recentMessages.forEach(comment => {
-
-                    const floatingComment = document.createElement("div");
-
-                    floatingComment.className = "floating-live-comment";
-
-                    const username = escapeHTML(
-                        comment.username || "User"
-                    );
-
-                    const messageText = escapeHTML(
-                        comment.text || ""
-                    );
-
-                    floatingComment.innerHTML = `
-                        <strong>${username}</strong>
-                        <span>${messageText}</span>
-                    `;
-
-                    liveCommentsOverlay.appendChild(floatingComment);
-
-                });
-
-            }
-
-        },
-
-        error => {
-
-            console.error("Live chat error:", error);
-
         }
-
     );
-
 }
 
+async function sendChatMessage() {
+    const text = chatInput?.value?.trim();
 
-// =====================================================
-// SEND CHAT
-// =====================================================
-
-if (sendChatBtn) {
-
-    sendChatBtn.addEventListener("click", sendChat);
-
-}
-
-if (chatInput) {
-
-    chatInput.addEventListener("keydown", event => {
-
-        if (
-            event.key === "Enter" &&
-            !event.shiftKey
-        ) {
-
-            event.preventDefault();
-
-            sendChat();
-
-        }
-
-    });
-
-}
-
-
-async function sendChat() {
-
-    if (!chatInput || !currentUser || streamEnded) {
-        return;
-    }
-
-    const messageText = chatInput.value.trim();
-
-    if (!messageText) {
-        return;
-    }
+    if (!text) return;
 
     try {
-
         await addDoc(
-
-            collection(
-                db,
-                "liveStreams",
-                streamId,
-                "messages"
-            ),
-
+            collection(db, "liveStreams", streamId, "messages"),
             {
-
                 userId: currentUser.uid,
-
-                username:
-                    currentUser.displayName ||
-                    currentUser.email ||
-                    "AlQlic User",
-
-                photoURL: currentUser.photoURL || "",
-
-                text: messageText,
-
+                username: currentUser.displayName || "Viewer",
+                text,
                 createdAt: serverTimestamp()
-
             }
-
         );
 
         chatInput.value = "";
 
     } catch (error) {
-
-        console.error("Send chat error:", error);
-
-        alert("Unable to send message.");
-
+        console.error("Sending chat message failed:", error);
     }
-
 }
 
+if (sendChatBtn) {
+    sendChatBtn.addEventListener("click", sendChatMessage);
+}
+
+if (chatInput) {
+    chatInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") sendChatMessage();
+    });
+}
 
 // =====================================================
-// LIKE BUTTON — SYNCHRONIZED WITH HOST
+// LIKES
 // =====================================================
 
 if (likeBtn) {
-
     likeBtn.addEventListener("click", async () => {
-
-        if (!currentUser || streamEnded) {
-            return;
-        }
-
         try {
-
-            // INCREASE TOTAL LIVE LIKES
-
-            await updateDoc(
-
-                doc(
-                    db,
-                    "liveStreams",
-                    streamId
-                ),
-
-                {
-                    likes: increment(1)
-                }
-
-            );
-
-
-            // CREATE A HEART EVENT FOR HOST AND VIEWERS
-
-            await addDoc(
-
-                collection(
-                    db,
-                    "liveStreams",
-                    streamId,
-                    "likeEvents"
-                ),
-
-                {
-
-                    userId: currentUser.uid,
-
-                    emoji: "❤️",
-
-                    createdAt: serverTimestamp()
-
-                }
-
-            );
-
-        } catch (error) {
-
-            console.error("Like error:", error);
-
-            alert("Unable to like this live stream.");
-
-        }
-
-    });
-
-}
-
-
-// =====================================================
-// LISTEN FOR LIVE HEART EVENTS
-// =====================================================
-
-function listenForLikeEvents() {
-
-    const likeEventsRef = collection(
-        db,
-        "liveStreams",
-        streamId,
-        "likeEvents"
-    );
-
-    let firstSnapshot = true;
-
-    unsubscribeLikeEvents = onSnapshot(
-
-        likeEventsRef,
-
-        snapshot => {
-
-            // DO NOT REPLAY OLD HEARTS WHEN JOINING
-
-            if (firstSnapshot) {
-
-                firstSnapshot = false;
-
-                return;
-
-            }
-
-            snapshot.docChanges().forEach(change => {
-
-                if (change.type !== "added") {
-                    return;
-                }
-
-                const eventData = change.doc.data();
-
-                showFloatingHeart(
-                    eventData.emoji || "❤️"
-                );
-
+            await updateDoc(doc(db, "liveStreams", streamId), {
+                likes: increment(1)
             });
-
-        },
-
-        error => {
-
-            console.error("Like events listener error:", error);
-
+        } catch (error) {
+            console.error("Like failed:", error);
         }
-
-    );
-
+    });
 }
 
-
 // =====================================================
-// FLOATING HEART ANIMATION
-// =====================================================
-
-function showFloatingHeart(emoji = "❤️") {
-
-    if (!liveLikesOverlay) {
-        return;
-    }
-
-    const heart = document.createElement("span");
-
-    heart.className = "floating-live-heart";
-
-    heart.textContent = emoji;
-
-    heart.style.right =
-        Math.floor(Math.random() * 55) + "px";
-
-    liveLikesOverlay.appendChild(heart);
-
-    setTimeout(() => {
-
-        heart.remove();
-
-    }, 2500);
-
-}
-
-
-// =====================================================
-// SEND GIFT
+// GIFTS
 // =====================================================
 
 if (giftBtn) {
+    giftBtn.addEventListener("click", async () => {
+        try {
+            await addDoc(
+                collection(db, "liveStreams", streamId, "gifts"),
+                {
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName || "Viewer",
+                    giftType: "heart",
+                    createdAt: serverTimestamp()
+                }
+            );
 
-    giftBtn.addEventListener("click", () => {
+            console.log("Gift sent.");
 
-        if (!creatorId) {
-
-            alert("Creator information is unavailable.");
-
-            return;
-
+        } catch (error) {
+            console.error("Gift sending failed:", error);
+            alert("Could not send gift.");
         }
-
-        const giftURL =
-            `gifts.html?creatorId=${encodeURIComponent(creatorId)}` +
-            `&streamId=${encodeURIComponent(streamId)}`;
-
-        window.location.href = giftURL;
-
     });
-
 }
-
 
 // =====================================================
 // SHARE LIVE STREAM
 // =====================================================
 
 if (shareBtn) {
-
     shareBtn.addEventListener("click", async () => {
-
-        const shareURL = window.location.href;
+        const shareUrl = window.location.href;
 
         try {
-
             if (navigator.share) {
-
                 await navigator.share({
-
-                    title: title?.textContent || "AlQlic Live",
-
-                    text: "Watch this live stream on AlQlic!",
-
-                    url: shareURL
-
+                    title: streamData?.title || "AlQlic Live",
+                    text: "Watch this live stream on AlQlic",
+                    url: shareUrl
                 });
-
+            } else if (navigator.clipboard) {
+                await navigator.clipboard.writeText(shareUrl);
+                alert("Live link copied.");
             } else {
-
-                await navigator.clipboard.writeText(shareURL);
-
-                alert("Live stream link copied!");
-
+                prompt("Copy this live link:", shareUrl);
             }
-
         } catch (error) {
-
-            console.log("Share cancelled or unavailable.");
-
+            console.warn("Share cancelled or failed:", error);
         }
-
     });
-
 }
 
-
 // =====================================================
-// ESCAPE HTML
+// CLEANUP CO-HOST VIEWER CONNECTION
 // =====================================================
 
-function escapeHTML(value = "") {
+function cleanupCoHostViewerConnection() {
+    if (coHostAnswerListener) {
+        coHostAnswerListener();
+        coHostAnswerListener = null;
+    }
 
-    return String(value)
+    if (coHostCandidatesListener) {
+        coHostCandidatesListener();
+        coHostCandidatesListener = null;
+    }
 
-        .replaceAll("&", "&amp;")
+    closePeerConnection(coHostPeerConnection);
+    coHostPeerConnection = null;
 
-        .replaceAll("<", "&lt;")
+    if (coHostVideo) {
+        if (coHostVideo.srcObject) {
+            coHostVideo.srcObject.getTracks().forEach(track => track.stop());
+        }
+        coHostVideo.srcObject = null;
+    }
 
-        .replaceAll(">", "&gt;")
+    if (currentCoHostViewerRef) {
+        deleteDoc(currentCoHostViewerRef).catch(error => {
+            console.warn("Co-host viewer document cleanup failed:", error);
+        });
+    }
 
-        .replaceAll('"', "&quot;")
-
-        .replaceAll("'", "&#039;");
-
+    currentCoHostViewerRef = null;
+    currentCoHostInvitationId = null;
 }
 
-
 // =====================================================
-// CLEANUP VIEWER
+// LEAVE LIVE STREAM
 // =====================================================
 
-async function cleanupViewer() {
-
-    if (cleanupStarted) {
-        return;
-    }
-
-    cleanupStarted = true;
-
-    console.log("Cleaning up viewer connection...");
-
-
-    // STOP FIRESTORE LISTENERS
-
-    if (unsubscribeAnswer) {
-
-        unsubscribeAnswer();
-
-        unsubscribeAnswer = null;
-
-    }
-
-    if (unsubscribeHostCandidates) {
-
-        unsubscribeHostCandidates();
-
-        unsubscribeHostCandidates = null;
-
-    }
-
-    if (unsubscribeChat) {
-
-        unsubscribeChat();
-
-        unsubscribeChat = null;
-
-    }
-
-    if (unsubscribeStreamStats) {
-
-        unsubscribeStreamStats();
-
-        unsubscribeStreamStats = null;
-
-    }
-
-    if (unsubscribeLikeEvents) {
-
-        unsubscribeLikeEvents();
-
-        unsubscribeLikeEvents = null;
-
-    }
-
-
-    // CLOSE CO-HOST CONNECTION IF CREATED
-
-    if (unsubscribeCoHostOffer) {
-
-        unsubscribeCoHostOffer();
-
-        unsubscribeCoHostOffer = null;
-
-    }
-
-    if (unsubscribeCoHostCandidates) {
-
-        unsubscribeCoHostCandidates();
-
-        unsubscribeCoHostCandidates = null;
-
-    }
-
-    if (coHostPeerConnection) {
-
-        try {
-            coHostPeerConnection.close();
-        } catch (error) {
-            console.error("Co-host connection cleanup error:", error);
-        }
-
-        coHostPeerConnection = null;
-
-    }
-
-    coHostMediaStream.getTracks().forEach(track => {
-        track.stop();
-    });
-
-
-    // CLOSE HOST WEBRTC CONNECTION
-
-    if (peerConnection) {
-
-        try {
-
-            peerConnection.ontrack = null;
-
-            peerConnection.onicecandidate = null;
-
-            peerConnection.onconnectionstatechange = null;
-
-            peerConnection.close();
-
-        } catch (error) {
-
-            console.error("Connection cleanup error:", error);
-
-        }
-
-        peerConnection = null;
-
-    }
-
-
-    // REMOVE VIEWER DOCUMENTS
-
-    const cleanupTasks = [];
-
-    if (viewerAnswerRef) {
-
-        cleanupTasks.push(
-            deleteDoc(viewerAnswerRef)
-        );
-
-    }
-
-    if (viewerOfferRef) {
-
-        cleanupTasks.push(
-            deleteDoc(viewerOfferRef)
-        );
-
-    }
-
-    const results = await Promise.allSettled(cleanupTasks);
-
-    results.forEach(result => {
-
-        if (result.status === "rejected") {
-
-            console.error(
-                "Firestore cleanup error:",
-                result.reason
+async function leaveLiveStream() {
+    if (isLeaving) return;
+    isLeaving = true;
+
+    if (hostAnswerListener) hostAnswerListener();
+    if (hostCandidatesListener) hostCandidatesListener();
+    if (coHostInvitationListener) coHostInvitationListener();
+    if (chatListener) chatListener();
+    if (streamListener) streamListener();
+    if (viewerCountListener) viewerCountListener();
+
+    hostAnswerListener = null;
+    hostCandidatesListener = null;
+    coHostInvitationListener = null;
+    chatListener = null;
+    streamListener = null;
+    viewerCountListener = null;
+
+    closePeerConnection(hostPeerConnection);
+    hostPeerConnection = null;
+
+    cleanupCoHostViewerConnection();
+
+    try {
+        if (currentUser && streamId && viewerSessionId) {
+            await updateDoc(
+                doc(db, "liveStreams", streamId, "viewers", viewerSessionId),
+                {
+                    status: "disconnected",
+                    leftAt: serverTimestamp()
+                }
             );
 
+            await deleteDoc(
+                doc(db, "liveStreams", streamId, "offers", viewerSessionId)
+            );
         }
-
-    });
-
-    console.log("Viewer cleanup completed");
-
+    } catch (error) {
+        console.warn("Viewer session cleanup failed:", error);
+    }
 }
 
+// =====================================================
+// BACK BUTTON
+// =====================================================
 
-// =====================================================
-// PAGE CLEANUP
-// =====================================================
+if (backBtn) {
+    backBtn.addEventListener("click", async () => {
+        await leaveLiveStream();
+        window.location.href = "index.html";
+    });
+}
 
 window.addEventListener("pagehide", () => {
+    if (hostAnswerListener) hostAnswerListener();
+    if (hostCandidatesListener) hostCandidatesListener();
+    if (coHostInvitationListener) coHostInvitationListener();
+    if (chatListener) chatListener();
+    if (streamListener) streamListener();
+    if (viewerCountListener) viewerCountListener();
 
-    cleanupViewer();
-
+    closePeerConnection(hostPeerConnection);
+    closePeerConnection(coHostPeerConnection);
 });
 
 window.addEventListener("beforeunload", () => {
-
-    cleanupViewer();
-
+    closePeerConnection(hostPeerConnection);
+    closePeerConnection(coHostPeerConnection);
 });
