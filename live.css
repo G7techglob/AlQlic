@@ -621,3 +621,25 @@ body {
     font-size: 13px;
 }
 
+#coHostUserSuggestions {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.co-host-user-suggestion {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 4px 0;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background: #303030;
+    color: white;
+    text-align: left;
+    cursor: pointer;
+}
+
+.co-host-user-suggestion:hover {
+    background: #454545;
+}
