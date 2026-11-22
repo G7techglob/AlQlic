@@ -532,7 +532,6 @@ function listenForViewerCount() {
 // =====================================================
 // SEARCH AND DISPLAY ALQLIC USER SUGGESTIONS
 // =====================================================
-
 let coHostSearchRequest = 0;
 
 if (coHostUsernameInput) {
@@ -546,48 +545,47 @@ if (coHostUsernameInput) {
 
         const requestId = ++coHostSearchRequest;
 
-        if (coHostUserSuggestions) {
-            coHostUserSuggestions.innerHTML = "";
-        }
+        if (!coHostUserSuggestions) return;
+
+        coHostUserSuggestions.innerHTML = "";
 
         if (username.length < 2) return;
 
-        if (coHostUserSuggestions) {
-            coHostUserSuggestions.textContent = "Searching users...";
-        }
+        coHostUserSuggestions.textContent = "Searching users...";
 
         try {
 
-            const usersRef = collection(db, "users");
-
-            const usersQuery = query(
-                usersRef,
-                where("username", ">=", username),
-                where("username", "<=", username + "\uf8ff"),
-                limit(8)
+            const usersSnapshot = await getDocs(
+                collection(db, "users")
             );
-
-            const usersSnapshot = await getDocs(usersQuery);
 
             if (requestId !== coHostSearchRequest) return;
 
-            if (!coHostUserSuggestions) return;
+            const matchingUsers = usersSnapshot.docs.filter(userDoc => {
+
+                if (userDoc.id === currentUser.uid) return false;
+
+                const user = userDoc.data();
+
+                const storedUsername = (user.username || "")
+                    .trim()
+                    .toLowerCase();
+
+                return storedUsername.startsWith(username);
+
+            }).slice(0, 8);
 
             coHostUserSuggestions.innerHTML = "";
 
-            const matchingUsers = usersSnapshot.docs.filter(
-                userDoc => userDoc.id !== currentUser.uid
-            );
-
             if (matchingUsers.length === 0) {
-                coHostUserSuggestions.textContent = "No matching users found.";
+                coHostUserSuggestions.textContent =
+                    "No matching users found.";
                 return;
             }
 
             matchingUsers.forEach(userDoc => {
 
                 const user = userDoc.data();
-
                 const usernameValue = user.username || "";
 
                 if (!usernameValue) return;
@@ -603,7 +601,6 @@ if (coHostUsernameInput) {
                 suggestion.addEventListener("click", () => {
 
                     coHostUsernameInput.value = usernameValue;
-
                     coHostUserSuggestions.innerHTML = "";
 
                 });
@@ -626,8 +623,6 @@ if (coHostUsernameInput) {
     });
 
 }
-
-
 if (inviteCoHostBtn && coHostInvitePanel) {
     inviteCoHostBtn.addEventListener("click", () => {
         coHostInvitePanel.hidden = false;
@@ -650,7 +645,7 @@ async function sendCoHostInvitation() {
     const username = coHostUsernameInput?.value
         ?.trim()
         .replace(/^@/, "")
-        .toLowerCase();
+        
     
     if (!username) {
         showInviteMessage("Enter the user's username.");
@@ -660,22 +655,27 @@ async function sendCoHostInvitation() {
     try {
         showInviteMessage("Searching for user...");
 
-        const usersQuery = query(
-            collection(db, "users"),
-            where("username", "==", username),
-            limit(1)
-        );
+       const usersSnapshot = await getDocs(
+    collection(db, "users")
+);
 
-        const usersSnapshot = await getDocs(usersQuery);
+const matchingUsers = usersSnapshot.docs.filter(userDoc => {
 
-        if (usersSnapshot.empty) {
-            showInviteMessage("User not found.");
-            return;
-        }
+    const storedUsername = (userDoc.data().username || "")
+        .trim()
+        .toLowerCase();
 
-        const invitedUser = usersSnapshot.docs[0];
-        const invitedData = invitedUser.data();
+    return storedUsername === username.trim().toLowerCase();
 
+});
+
+if (matchingUsers.length === 0) {
+    showInviteMessage("User not found.");
+    return;
+}
+
+const invitedUser = matchingUsers[0];
+const invitedData = invitedUser.data();
         if (invitedUser.id === currentUser.uid) {
             showInviteMessage("You cannot invite yourself.");
             return;
