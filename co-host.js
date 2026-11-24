@@ -51,7 +51,8 @@ let localStream = null;
 let peerConnection = null;
 
 let unsubscribeHostCandidates = null;
-let unsubscribeInvitation = null;
+let unsubscribeInvitationStatus = null;
+let unsubscribeHostAnswer = null;
 
 let micEnabled = true;
 let cameraEnabled = true;
@@ -59,6 +60,7 @@ let busy = false;
 let leaving = false;
 
 const seenHostCandidates = new Set();
+const pendingHostCandidates = [];
 
 function setStatus(message) {
     if (coHostStatus) coHostStatus.textContent = message;
@@ -104,9 +106,14 @@ function stopInvitationListeners() {
         unsubscribeHostCandidates = null;
     }
 
-    if (unsubscribeInvitation) {
-        unsubscribeInvitation();
-        unsubscribeInvitation = null;
+    if (unsubscribeInvitationStatus) {
+        unsubscribeInvitationStatus();
+        unsubscribeInvitationStatus = null;
+    }
+
+    if (unsubscribeHostAnswer) {
+        unsubscribeHostAnswer();
+        unsubscribeHostAnswer = null;
     }
 }
 
@@ -221,6 +228,8 @@ if (acceptInviteBtn) {
 async function acceptInvitation() {
     if (busy || !currentInvitation || !currentInvitationId) return;
     busy = true;
+    seenHostCandidates.clear();
+pendingHostCandidates.length = 0;
 
     try {
         setStatus("Requesting camera and microphone...");
@@ -319,10 +328,14 @@ async function acceptInvitation() {
 // RECEIVE HOST ANSWER
 // =====================================================
 
-function listenForHostAnswer() {
-    if (unsubscribeInvitation) unsubscribeInvitation();
 
-    unsubscribeInvitation = onSnapshot(
+function listenForHostAnswer() {
+    if (unsubscribeHostAnswer) {
+        unsubscribeHostAnswer();
+        unsubscribeHostAnswer = null;
+    }
+
+    unsubscribeHostAnswer = onSnapshot(
         getInvitationRef(),
         async snapshot => {
             if (!snapshot.exists() || !peerConnection) return;
@@ -341,11 +354,13 @@ function listenForHostAnswer() {
                 !peerConnection.currentRemoteDescription
             ) {
                 try {
-                    await peerConnection.setRemoteDescription(
-                        new RTCSessionDescription(data.coHostAnswer)
-                    );
+                   await peerConnection.setRemoteDescription(
+    new RTCSessionDescription(data.coHostAnswer)
+);
 
-                    setStatus("Host answer received. Connecting...");
+await processPendingHostCandidates();
+
+setStatus("Host answer received. Connecting...");
                 } catch (error) {
                     console.error("Applying host answer failed:", error);
                 }
@@ -357,6 +372,7 @@ function listenForHostAnswer() {
 // =====================================================
 // RECEIVE HOST ICE CANDIDATES
 // =====================================================
+
 
 function listenForHostCandidates() {
     if (unsubscribeHostCandidates) {
@@ -372,26 +388,42 @@ function listenForHostCandidates() {
     unsubscribeHostCandidates = onSnapshot(
         candidatesRef,
         async snapshot => {
-            if (!peerConnection || !peerConnection.remoteDescription) return;
+            if (!peerConnection) return;
 
             for (const change of snapshot.docChanges()) {
                 if (change.type !== "added") continue;
 
                 const candidateId = change.doc.id;
+
                 if (seenHostCandidates.has(candidateId)) continue;
 
                 seenHostCandidates.add(candidateId);
 
-                try {
-                    await peerConnection.addIceCandidate(
-                        new RTCIceCandidate(change.doc.data())
-                    );
-                } catch (error) {
-                    console.warn("Host ICE candidate error:", error);
-                }
+                pendingHostCandidates.push({
+                    id: candidateId,
+                    data: change.doc.data()
+                });
             }
+
+            await processPendingHostCandidates();
         }
     );
+}
+
+async function processPendingHostCandidates() {
+    if (!peerConnection || !peerConnection.remoteDescription) return;
+
+    while (pendingHostCandidates.length > 0) {
+        const item = pendingHostCandidates.shift();
+
+        try {
+            await peerConnection.addIceCandidate(
+                new RTCIceCandidate(item.data)
+            );
+        } catch (error) {
+            console.warn("Host ICE candidate error:", error);
+        }
+    }
 }
 
 // =====================================================
@@ -461,10 +493,14 @@ if (coHostCameraBtn) {
 // LISTEN FOR INVITATION STATUS
 // =====================================================
 
-function listenForInvitationStatus() {
-    if (unsubscribeInvitation) unsubscribeInvitation();
 
-    unsubscribeInvitation = onSnapshot(
+function listenForInvitationStatus() {
+    if (unsubscribeInvitationStatus) {
+        unsubscribeInvitationStatus();
+        unsubscribeInvitationStatus = null;
+    }
+
+    unsubscribeInvitationStatus = onSnapshot(
         getInvitationRef(),
         async snapshot => {
             if (!snapshot.exists()) return;
