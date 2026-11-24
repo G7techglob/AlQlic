@@ -319,9 +319,11 @@ body {
         font-size: 12px;
     }
 
-    .live-stream-grid,
     .video-grid {
-        grid-template-columns: 1fr;
-    }
+    grid-template-columns: 1fr;
+}
 
+.live-card {
+    max-width: 100%;
+}
 }
