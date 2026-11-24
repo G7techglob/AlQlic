@@ -1189,12 +1189,14 @@ function stopLiveListeners() {
     }
 }
 
-// =====================================================
-// END LIVE STREAM
-// =====================================================
 
 
-async function endLiveStream() {
+
+// =====================================================
+// END LIVE STREAM — THREE OPTIONS
+// =====================================================
+
+async function endLiveStream(saveVideo) {
     if (isEnding) return;
 
     if (!currentUser || !streamId) {
@@ -1202,17 +1204,16 @@ async function endLiveStream() {
         return;
     }
 
-    const shouldSave = confirm(
-        "Do you want to SAVE your recorded live video?\n\n" +
-        "OK = Save Video\n" +
-        "Cancel = Discard Video\n\n" +
-        "Your live stream will end either way."
-    );
-
     isEnding = true;
 
     if (endLiveBtn) {
         endLiveBtn.disabled = true;
+    }
+
+    const endLivePanel = $("endLivePanel");
+
+    if (endLivePanel) {
+        endLivePanel.style.display = "none";
     }
 
     try {
@@ -1221,13 +1222,18 @@ async function endLiveStream() {
         stopLiveListeners();
         await cleanupCoHostConnection();
 
+        // Stop recording and collect the final video data.
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             await new Promise((resolve, reject) => {
-                mediaRecorder.addEventListener("stop", resolve, { once: true });
+                mediaRecorder.addEventListener("stop", resolve, {
+                    once: true
+                });
 
                 mediaRecorder.addEventListener("error", event => {
                     reject(event.error || new Error("Recording failed."));
-                }, { once: true });
+                }, {
+                    once: true
+                });
 
                 mediaRecorder.stop();
             });
@@ -1239,18 +1245,34 @@ async function endLiveStream() {
             });
         }
 
-        if (shouldSave) {
-            alert(
-                "Video saving is currently unavailable on the free plan.\n\n" +
-                "Your live stream will end, but the recording will not be saved."
-            );
-        } else {
-            console.log("User selected Discard Video.");
+        // Download the recording to the host's device.
+        if (saveVideo && recordedVideoBlob) {
+            const videoURL = URL.createObjectURL(recordedVideoBlob);
+            const downloadLink = document.createElement("a");
+
+            downloadLink.href = videoURL;
+            downloadLink.download = `AlQlic-live-${streamId}.webm`;
+
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            downloadLink.remove();
+
+            setTimeout(() => {
+                URL.revokeObjectURL(videoURL);
+            }, 60000);
+
+            alert("Your live video download has started.");
         }
 
+        if (saveVideo && !recordedVideoBlob) {
+            alert("No recorded video is available to download.");
+        }
+
+        // Clear temporary recording data.
         recordedChunks.length = 0;
         recordedVideoBlob = null;
 
+        // End the stream in Firestore.
         await updateDoc(doc(db, "liveStreams", streamId), {
             status: "ended",
             hostOnline: false,
@@ -1277,10 +1299,64 @@ async function endLiveStream() {
     }
 }
 
+
+// OPEN THE POPUP
 if (endLiveBtn) {
-    endLiveBtn.addEventListener("click", endLiveStream);
+    endLiveBtn.addEventListener("click", () => {
+        if (isEnding) return;
+
+        const panel = $("endLivePanel");
+
+        if (panel) {
+            panel.style.display = "block";
+        }
+    });
 }
 
+
+// SAVE VIDEO AND END LIVE
+const saveVideoEndBtn = $("saveVideoEndBtn");
+
+if (saveVideoEndBtn) {
+    saveVideoEndBtn.addEventListener("click", () => {
+        endLiveStream(true);
+    });
+}
+
+
+// DISCARD VIDEO AND END LIVE
+const discardVideoEndBtn = $("discardVideoEndBtn");
+
+if (discardVideoEndBtn) {
+    discardVideoEndBtn.addEventListener("click", () => {
+        endLiveStream(false);
+    });
+}
+
+
+// CANCEL AND RETURN TO LIVE
+const cancelEndLiveBtn = $("cancelEndLiveBtn");
+
+if (cancelEndLiveBtn) {
+    cancelEndLiveBtn.addEventListener("click", () => {
+        const panel = $("endLivePanel");
+
+        if (panel) {
+            panel.style.display = "none";
+        }
+    });
+}
+
+
+// BACK BUTTON ALSO OPENS THE POPUP
 if (backBtn) {
-    backBtn.addEventListener("click", endLiveStream);
+    backBtn.addEventListener("click", () => {
+        if (isEnding) return;
+
+        const panel = $("endLivePanel");
+
+        if (panel) {
+            panel.style.display = "block";
+        }
+    });
 }
