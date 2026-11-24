@@ -310,8 +310,11 @@ function startRecording() {
     }
 }
 
+
 async function uploadRecording() {
-    if (!recordedVideoBlob || !currentUser || !streamId) return;
+    if (!recordedVideoBlob || !currentUser || !streamId) {
+        return false;
+    }
 
     try {
         const fileRef = ref(
@@ -332,10 +335,19 @@ async function uploadRecording() {
             savedAt: serverTimestamp()
         });
 
-        showMessage("Live recording uploaded.");
+        showMessage("Your live video was saved successfully.");
+
+        return true;
 
     } catch (error) {
         console.error("Recording upload failed:", error);
+
+        alert(
+            "Your live video could not be saved.\n\n" +
+            "Error: " + error.message
+        );
+
+        return false;
     }
 }
 
@@ -1180,6 +1192,7 @@ function stopLiveListeners() {
 // =====================================================
 // END LIVE STREAM
 // =====================================================
+
 async function endLiveStream() {
     if (isEnding) return;
 
@@ -1188,8 +1201,13 @@ async function endLiveStream() {
         return;
     }
 
-    const confirmed = confirm("Are you sure you want to end your live stream?");
-    if (!confirmed) return;
+    // OK means Save Video. Cancel means Discard Video.
+    const shouldSave = confirm(
+        "Do you want to SAVE your recorded live video?\n\n" +
+        "OK = Save Video\n" +
+        "Cancel = Discard Video\n\n" +
+        "Your live stream will end either way."
+    );
 
     isEnding = true;
 
@@ -1203,6 +1221,7 @@ async function endLiveStream() {
         stopLiveListeners();
         await cleanupCoHostConnection();
 
+        // Stop recording and wait for the final video data.
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             await new Promise((resolve, reject) => {
                 mediaRecorder.addEventListener("stop", resolve, { once: true });
@@ -1215,14 +1234,37 @@ async function endLiveStream() {
             });
         }
 
+        // Build the recorded video.
         if (recordedChunks.length > 0) {
             recordedVideoBlob = new Blob(recordedChunks, {
                 type: "video/webm"
             });
         }
 
-        await uploadRecording();
+       
+if (shouldSave) {
+    alert(
+        "Video saving is currently unavailable on the free plan.\n\n" +
+        "Your live stream will end, but the recording will not be saved."
+    );
 
+    recordedChunks.length = 0;
+    recordedVideoBlob = null;
+
+} else {
+    console.log("User selected Discard Video.");
+
+    recordedChunks.length = 0;
+    recordedVideoBlob = null;
+}
+
+            console.log("User selected Discard Video.");
+
+            recordedChunks.length = 0;
+            recordedVideoBlob = null;
+        }
+
+        // End the live stream regardless of the save/discard choice.
         await updateDoc(doc(db, "liveStreams", streamId), {
             status: "ended",
             hostOnline: false,
@@ -1249,29 +1291,11 @@ async function endLiveStream() {
     }
 }
 
-
 if (endLiveBtn) {
     endLiveBtn.addEventListener("click", endLiveStream);
 }
 
 if (backBtn) {
-    backBtn.addEventListener("click", async () => {
-        if (confirm("Do you want to end your live stream?")) {
-            await endLiveStream();
-        }
-    });
+    backBtn.addEventListener("click", endLiveStream);
 }
 
-window.addEventListener("beforeunload", () => {
-    stopLiveListeners();
-    closePeerConnection(coHostPeerConnection);
-    viewerConnections.forEach(closePeerConnection);
-    coHostViewerConnections.forEach(closePeerConnection);
-    stopStreamTracks(localStream);
-});
-
-window.addEventListener("pagehide", () => {
-    stopLiveListeners();
-    closePeerConnection(coHostPeerConnection);
-    stopStreamTracks(localStream);
-});
