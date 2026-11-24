@@ -1193,6 +1193,7 @@ function stopLiveListeners() {
 // END LIVE STREAM
 // =====================================================
 
+
 async function endLiveStream() {
     if (isEnding) return;
 
@@ -1201,7 +1202,6 @@ async function endLiveStream() {
         return;
     }
 
-    // OK means Save Video. Cancel means Discard Video.
     const shouldSave = confirm(
         "Do you want to SAVE your recorded live video?\n\n" +
         "OK = Save Video\n" +
@@ -1221,7 +1221,6 @@ async function endLiveStream() {
         stopLiveListeners();
         await cleanupCoHostConnection();
 
-        // Stop recording and wait for the final video data.
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             await new Promise((resolve, reject) => {
                 mediaRecorder.addEventListener("stop", resolve, { once: true });
@@ -1234,37 +1233,24 @@ async function endLiveStream() {
             });
         }
 
-        // Build the recorded video.
         if (recordedChunks.length > 0) {
             recordedVideoBlob = new Blob(recordedChunks, {
                 type: "video/webm"
             });
         }
 
-       
-if (shouldSave) {
-    alert(
-        "Video saving is currently unavailable on the free plan.\n\n" +
-        "Your live stream will end, but the recording will not be saved."
-    );
-
-    recordedChunks.length = 0;
-    recordedVideoBlob = null;
-
-} else {
-    console.log("User selected Discard Video.");
-
-    recordedChunks.length = 0;
-    recordedVideoBlob = null;
-}
-
+        if (shouldSave) {
+            alert(
+                "Video saving is currently unavailable on the free plan.\n\n" +
+                "Your live stream will end, but the recording will not be saved."
+            );
+        } else {
             console.log("User selected Discard Video.");
-
-            recordedChunks.length = 0;
-            recordedVideoBlob = null;
         }
 
-        // End the live stream regardless of the save/discard choice.
+        recordedChunks.length = 0;
+        recordedVideoBlob = null;
+
         await updateDoc(doc(db, "liveStreams", streamId), {
             status: "ended",
             hostOnline: false,
@@ -1298,4 +1284,3 @@ if (endLiveBtn) {
 if (backBtn) {
     backBtn.addEventListener("click", endLiveStream);
 }
-
