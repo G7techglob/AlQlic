@@ -42,7 +42,7 @@ const streamTitleInput = $("streamTitle");
 const titleElement = $("title");
 const descriptionInput = $("description");
 const viewerCountElement = $("viewerCount");
-const likeCountElement = $("likeCount");
+const likeCountElement = $("liveLikeCount");
 const micBtn = $("micBtn");
 const cameraBtn = $("cameraBtn");
 const switchCameraBtn = $("switchCameraBtn");
@@ -1102,19 +1102,41 @@ function listenForLikes() {
 }
 
 async function sendHostLike() {
+    if (!currentUser || !streamId) {
+        console.error("Cannot like: user or stream ID is missing.");
+        return;
+    }
+
+    if (!hostLikeBtn) {
+        console.error("Like button was not found.");
+        return;
+    }
+
+    hostLikeBtn.disabled = true;
+
     try {
-        await updateDoc(doc(db, "liveStreams", streamId), {
+        const streamRef = doc(db, "liveStreams", streamId);
+
+        await updateDoc(streamRef, {
             likes: increment(1)
         });
+
+        console.log("Host like added successfully.");
+
     } catch (error) {
         console.error("Host like failed:", error);
+        alert("Could not send your like. Check the browser console for details.");
+
+    } finally {
+        hostLikeBtn.disabled = false;
     }
 }
 
 if (hostLikeBtn) {
     hostLikeBtn.addEventListener("click", sendHostLike);
+} else {
+    console.error("HTML element hostLikeBtn was not found.");
 }
-
 // =====================================================
 // STOP ALL LISTENERS AND CONNECTIONS
 // =====================================================
@@ -1158,23 +1180,42 @@ function stopLiveListeners() {
 // =====================================================
 // END LIVE STREAM
 // =====================================================
-
 async function endLiveStream() {
     if (isEnding) return;
+
+    if (!currentUser || !streamId) {
+        alert("Unable to end live: stream information is missing.");
+        return;
+    }
+
+    const confirmed = confirm("Are you sure you want to end your live stream?");
+    if (!confirmed) return;
+
     isEnding = true;
 
+    if (endLiveBtn) {
+        endLiveBtn.disabled = true;
+    }
+
     try {
+        console.log("Ending live stream...");
+
         stopLiveListeners();
         await cleanupCoHostConnection();
 
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
-            await new Promise(resolve => {
-                mediaRecorder.onstop = resolve;
+            await new Promise((resolve, reject) => {
+                mediaRecorder.addEventListener("stop", resolve, { once: true });
+
+                mediaRecorder.addEventListener("error", event => {
+                    reject(event.error || new Error("Recording failed."));
+                }, { once: true });
+
                 mediaRecorder.stop();
             });
         }
 
-        if (recordedChunks.length) {
+        if (recordedChunks.length > 0) {
             recordedVideoBlob = new Blob(recordedChunks, {
                 type: "video/webm"
             });
@@ -1191,14 +1232,23 @@ async function endLiveStream() {
         stopStreamTracks(localStream);
         localStream = null;
 
+        console.log("Live stream ended successfully.");
+
         window.location.href = "index.html";
 
     } catch (error) {
         console.error("End live failed:", error);
+
         isEnding = false;
-        alert("Could not end the live stream properly. Please try again.");
+
+        if (endLiveBtn) {
+            endLiveBtn.disabled = false;
+        }
+
+        alert("Could not end your live stream: " + error.message);
     }
 }
+
 
 if (endLiveBtn) {
     endLiveBtn.addEventListener("click", endLiveStream);
