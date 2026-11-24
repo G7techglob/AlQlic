@@ -849,14 +849,26 @@ function loadLiveStreams() {
     unsubscribeLiveStreams = onSnapshot(
         streamsQuery,
 
-        snapshot => {
+      snapshot => {
 
-            stopAllFeedConnections();
+    // Do not rebuild live cards when only an existing
+    // stream document has been updated, such as a Like.
 
-            visibleCards.clear();
+    const changes = snapshot.docChanges();
 
-            liveStreams.innerHTML = "";
+    const onlyModified =
+        changes.length > 0 &&
+        changes.every(change => change.type === "modified");
 
+    if (onlyModified && liveStreams.children.length > 0) {
+        return;
+    }
+
+    stopAllFeedConnections();
+
+    visibleCards.clear();
+
+    liveStreams.innerHTML = "";
 
             if (snapshot.empty) {
 
