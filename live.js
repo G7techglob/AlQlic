@@ -1300,19 +1300,29 @@ async function endLiveStream(saveVideo) {
 }
 
 
-// OPEN THE POPUP
+// OPEN END LIVE POPUP
 if (endLiveBtn) {
-    endLiveBtn.addEventListener("click", () => {
+    endLiveBtn.onclick = function (event) {
+        event.preventDefault();
+
+        console.log("End Live button clicked");
+
         if (isEnding) return;
 
-        const panel = $("endLivePanel");
+        const panel = document.getElementById("endLivePanel");
 
         if (panel) {
             panel.style.display = "block";
-        }
-    });
-}
+            panel.style.visibility = "visible";
+            panel.style.opacity = "1";
+            panel.style.zIndex = "99999";
 
+            console.log("End Live popup opened");
+        } else {
+            console.error("End Live popup not found");
+        }
+    };
+}
 
 // SAVE VIDEO AND END LIVE
 const saveVideoEndBtn = $("saveVideoEndBtn");
