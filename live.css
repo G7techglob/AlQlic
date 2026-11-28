@@ -643,3 +643,69 @@ body {
 .co-host-user-suggestion:hover {
     background: #454545;
 }
+/* =====================================
+   END LIVE POPUP
+===================================== */
+
+#endLivePanel {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+
+    width: min(90%, 380px);
+    max-height: 85vh;
+    overflow-y: auto;
+
+    padding: 25px;
+    border-radius: 16px;
+
+    background: #202020 !important;
+    color: #fff !important;
+
+    text-align: center;
+
+    z-index: 999999 !important;
+
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+#endLivePanel h3 {
+    margin-top: 0;
+    font-size: 20px;
+}
+
+#endLivePanel p {
+    color: #ddd;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#endLivePanel button {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    margin: 10px 0;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #333;
+    color: white;
+
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#saveVideoEndBtn {
+    background: #168a48 !important;
+}
+
+#discardVideoEndBtn {
+    background: #c62828 !important;
+}
+
+#cancelEndLiveBtn {
+    background: #555 !important;
+}
